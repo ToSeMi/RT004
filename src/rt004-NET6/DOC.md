@@ -10,4 +10,4 @@ The program can either read a specified json file as config, reading the paramet
 
 ## Output
 
-Program's output is a .pfm image, it should be a filled-in circle.
+Program's output is a .pfm image, it should be a blue curve separating a black part of the image and the dark red part.
