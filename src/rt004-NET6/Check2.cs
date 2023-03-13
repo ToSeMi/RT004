@@ -25,9 +25,7 @@ namespace rt004.checkpoint2 {
 
 		public void AddLight(LightSrc light){
 			lights.Add(light);
-		}
-
-
+		}	
 
 		public Scene? LoadScene(string fileName){
 			Scene? returnable = null;
@@ -52,24 +50,23 @@ namespace rt004.checkpoint2 {
 			this.H = highlight;
 			this.color = color;
 		}
-		public Vector3 DiffuseComponent( ){
-			return  normal*color*kD * Vector3.Dot(view,normal);
+		public float DiffuseComponent( ){
+			return  Vector3.Dot(normal,color)*kD * Vector3.Dot(view,normal);
 		}
 		public Vector3 AmbientLight(){
 			return color*kA;
 		}
-		public Vector3 SpecularComponent(Vector3 unitV, Vector3 unitR){
-			return light*color*kS*(float)Math.Pow(Vector3.Dot(unitR,unitV),H);
+		public float SpecularComponent(Vector3 unitV, Vector3 unitR){
+			return Vector3.Dot(light,color)*kS*(float)Math.Pow(Vector3.Dot(unitR,unitV),H);
 		}
 		
 	}
 	public abstract class ObjectOnMap {
 		protected Vector3 position;
 		public Vector3 Position {get => position; set=> position = value;}
-		protected Scene? scene;
 	}
 	public abstract class Solid : ObjectOnMap {
-		public abstract void Draw();
+		public abstract void Draw(FloatCamera fc);
 
 		public abstract bool Intersect(FloatCamera fc);
 	}
@@ -86,8 +83,8 @@ namespace rt004.checkpoint2 {
 	public class DirectionLightSource : LightSrc {
 		Vector3 Direction;
 		public void shade() {
-			var E = model?.AmbientLight() 
-			+ model?.DiffuseComponent() 
+			var E = //model?.AmbientLight() 
+			  model?.DiffuseComponent() 
 			+ model?.SpecularComponent(Vector3.UnitX, Vector3.UnitY); 
 		}
 	}
@@ -122,9 +119,18 @@ namespace rt004.checkpoint2 {
 
     public class Plane : Solid
     {
-        public override void Draw()
+        public override void Draw(FloatCamera fc)
         {
-            throw new NotImplementedException();
+
+			if(Intersect(fc)){
+				var D = Vector3.Distance(fc.Position,this.Position); //D stands here for distance
+
+				var p0 = fc.Position;
+				var p1 = fc.Direction;
+				var n = Position; //i take position here as normal
+            	var t =-1*(Vector3.Dot(n , p0) + D) / (Vector3.Dot(n,p1));
+				var pt = p0 + t*p1; //parametric intersection
+			}
         }
 
         public override bool Intersect(FloatCamera fc)
@@ -136,20 +142,23 @@ namespace rt004.checkpoint2 {
 			var n = Position;
 			if((Vector3.Dot(n,p1)) <= 10e-9)
 				return false;
-			var t= -1*(Vector3.Dot(n , p0) + D) / (Vector3.Dot(n,p1));
-			return isinplane(p0 + t*p1,D);
+			
+			return true;
 			
         }
-		bool isinplane(Vector3 v, float D){
-			return Math.Abs(v.X*Position.X + v.Y * Position.Y + v.Z* Position.Z - D)  <= 10e-9;
-		}
 
     }
 
     public class Sphere : Solid {
-        public override void Draw()
+        public override void Draw(FloatCamera fc)
         {
-            throw new NotImplementedException();
+            var P0 = fc.Position;
+			var P1 = fc.Direction;
+			var D = Math.Pow(Vector3.Dot(P1,P0),2) - 4*(Vector3.Dot(P1,P1)*Vector3.Dot(P0,P0));
+			var t0 = (float)(-1*Vector3.Dot(P1,P0) + Math.Sqrt(D)) / (2*Vector3.Dot(P1,P0));
+			var t1 = (float)(-1*Vector3.Dot(P1,P0) - Math.Sqrt(D)) / (2*Vector3.Dot(P1,P0));  
+			var pt0 = P0 + t0*P1;
+			var pt1 = P0 + t1*P1;
         }
 
         public override bool Intersect(FloatCamera fc)
@@ -159,8 +168,6 @@ namespace rt004.checkpoint2 {
 			var P0 = fc.Position;
 			var P1 = fc.Direction;
 			var D = Math.Pow(Vector3.Dot(P1,P0),2) - 4*(Vector3.Dot(P1,P1)*Vector3.Dot(P0,P0));
-			var t0 = (-1*Vector3.Dot(P1,P0) + Math.Sqrt(D)) / (2*Vector3.Dot(P1,P0));
-			var t1 = (-1*Vector3.Dot(P1,P0) - Math.Sqrt(D)) / (2*Vector3.Dot(P1,P0));  
 			if(D < 0)
 				return false;
 			return true;
