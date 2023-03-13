@@ -217,8 +217,7 @@ internal class Program
         var color = new float[] { 0.2f, 0.3f, 1f };
         var color1 = new float[] {0.3f,0.1f,0.5f};
         var BLACK = new float[] {0f,0f,0f};
-        MidpointDraw(fi, wid, hei, color);
-        FloodQueue(fi, wid / 2, hei / 2, color1,BLACK);
+        
         fi.SavePFM(fileName);
 
         Console.WriteLine("HDR image is finished.");

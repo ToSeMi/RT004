@@ -134,6 +134,8 @@ namespace rt004.checkpoint2 {
 			var p0 = fc.Position;
 			var p1 = fc.Direction;
 			var n = Position;
+			if((Vector3.Dot(n,p1)) <= 10e-9)
+				return false;
 			var t= -1*(Vector3.Dot(n , p0) + D) / (Vector3.Dot(n,p1));
 			return isinplane(p0 + t*p1,D);
 			
@@ -153,15 +155,16 @@ namespace rt004.checkpoint2 {
         public override bool Intersect(FloatCamera fc)
         {
 
+			//t^2(P1.P1) + 2t(P1.P0) + (P0.P0) - 1 = 0
+			var P0 = fc.Position;
+			var P1 = fc.Direction;
+			var D = Math.Pow(Vector3.Dot(P1,P0),2) - 4*(Vector3.Dot(P1,P1)*Vector3.Dot(P0,P0));
+			var t0 = (-1*Vector3.Dot(P1,P0) + Math.Sqrt(D)) / (2*Vector3.Dot(P1,P0));
+			var t1 = (-1*Vector3.Dot(P1,P0) - Math.Sqrt(D)) / (2*Vector3.Dot(P1,P0));  
+			if(D < 0)
+				return false;
+			return true;
 			
-			var D = Vector3.Distance(fc.Position,this.Position);
-
-			var p0 = fc.Position;
-			var p1 = fc.Direction;
-			var n = Position;
-			var t= -1*(Vector3.Dot(n , p0) + D) / (Vector3.Dot(n,p1));
-			return Math.Abs(t*t*(Vector3.Dot(p1,p1)) +2*t*(Vector3.Dot(p0,p1) + Vector3.Dot(p0,p1)) - D) <= 10e-9;
-
         }
 
     }
