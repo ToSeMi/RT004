@@ -4,19 +4,20 @@ using System.Numerics;
 
 namespace rt004.checkpoint2 {
 	
-	public class Scene {
-		FloatImage fi;
+	public class ImageSynthetizer {
 		List<Solid> objects;
 		List<LightSrc> lights;
 		FloatCamera camera;
 		string filename;
+		int width, height;
 
-		public Scene(int wid, int hei, string filename, FloatCamera fc) {
-			fi = new FloatImage(wid, hei, 3);
+		public ImageSynthetizer(int wid, int hei, string filename, FloatCamera fc) {
 			this.filename = filename;
 			objects = new();
 			lights = new();
 			this.camera = fc;
+			this.width = wid;
+			this.height = hei;
 		}
 
 		public void AddSolid(Solid s) {
@@ -26,11 +27,28 @@ namespace rt004.checkpoint2 {
 		public void AddLight(LightSrc light){
 			lights.Add(light);
 		}	
+		public FloatImage RenderScene() {
+			FloatImage fi = new FloatImage(width, height, 3);
+			Vector3 center = camera.Position;
+			Vector3 direction = camera.Direction;
+			float d = 60;
+			Vector3 u = Vector3.UnitY;
+			foreach(var solid in objects){
+				var t = solid.CalculateT(camera);
+				var pt = center + t*direction;
+				Vector3 color = new Vector3();
+				if(t >= 10e-9){ 
+					foreach(var light in lights){
+						float contrib = light.ComputeLightContrib(solid);
+						color += (contrib * pt);
+					}
+				}else {
+					color += new Vector3(1,1,1);
+				}
 
-		public Scene? LoadScene(string fileName){
-			Scene? returnable = null;
-
-			return returnable;
+			}
+			
+			return fi;
 		}
 	}
 
@@ -66,60 +84,70 @@ namespace rt004.checkpoint2 {
 		public Vector3 Position {get => position; set=> position = value;}
 	}
 	public abstract class Solid : ObjectOnMap {
-		public abstract void Draw(FloatCamera fc);
+		public Phong? Model {set;get;}
+		public abstract float CalculateT(FloatCamera fc);
 
 		public abstract bool Intersect(FloatCamera fc);
 	}
 
-	public abstract class LightSrc  {
+	public abstract class LightSrc : ObjectOnMap  {
 		protected Vector3 Intensity;
-		protected Phong? model;
+		public abstract float ComputeLightContrib(Solid s);
 	}
 
-	public class PointLightSource : LightSrc {
-
-	}
 
 	public class DirectionLightSource : LightSrc {
-		Vector3 Direction;
-		public void shade() {
+		public Vector3 Direction;
+
+		public DirectionLightSource(Vector3 dir, Vector3 intensity) {
+			this.Direction = dir;
+			this.Intensity = intensity;
+		}
+
+		public override float ComputeLightContrib(Solid s) {
 			var E = //model?.AmbientLight() 
-			  model?.DiffuseComponent() 
-			+ model?.SpecularComponent(Vector3.UnitX, Vector3.UnitY); 
+			  s.Model!.DiffuseComponent() 
+			+ s.Model!.SpecularComponent(Intensity, this.Direction); 
+			return E;
 		}
 	}
 	/*
 	I want to have a perspective camera
 	*/
     public class FloatCamera : ObjectOnMap {
-		Matrix4x4 projection;
+
         Vector3 direction;
 		float frustrum;
+		public FloatImage image;
+		int dimension;
 
 		public Vector3 Direction {get => direction; set=> position = value;}
 		public float Frustrum {get=>frustrum; set=> frustrum=value;}
 
-		public FloatCamera(float x = 0,float y = 0, float z = 0, float a1 =0, float a2=0, float a3 =0, float frustrum =0){
+		public FloatCamera(FloatImage fi, float x = 0,float y = 0, float z = 0, float a1 = 0, float a2 = 0, float a3 = 0, float frustrum = 0, int dim = 0){
 			this.direction = new Vector3(x,y,z);
 			this.position = new Vector3(a1,a2,a3);
 			this.frustrum = frustrum;
-			projection = new Matrix4x4(	1,0,0,0,
-										0,1,0,0,
-										0,0,1,1/frustrum,
-										0,0,0,0);
+			
+			this.image = fi;
+			this.dimension = dim;
 		}
-		public FloatCamera(Vector3 pos, Vector3 dir, float frustrum = 0){
+		public FloatCamera(FloatImage fi, Vector3 pos, Vector3 dir, float frustrum = 0){
 			this.position = pos;
 			this.direction = dir;
 			this.frustrum = frustrum;
+			this.image = fi;
 		}
-
 
     }
 
     public class Plane : Solid
     {
-        public override void Draw(FloatCamera fc)
+		public Plane(Vector3 pos, Phong model){
+			this.position = pos;
+			this.Model = model;
+		}
+        public override float CalculateT(FloatCamera fc)
         {
 
 			if(Intersect(fc)){
@@ -130,17 +158,16 @@ namespace rt004.checkpoint2 {
 				var n = Position; //i take position here as normal
             	var t =-1*(Vector3.Dot(n , p0) + D) / (Vector3.Dot(n,p1));
 				var pt = p0 + t*p1; //parametric intersection
-			}
+				return t;
+			}return 0;
         }
 
         public override bool Intersect(FloatCamera fc)
         {
-			var D = Vector3.Distance(fc.Position,this.Position);
-
 			var p0 = fc.Position;
 			var p1 = fc.Direction;
 			var n = Position;
-			if((Vector3.Dot(n,p1)) <= 10e-9)
+			if((Vector3.Dot(n,p1)) <= 10e-32)
 				return false;
 			
 			return true;
@@ -149,25 +176,39 @@ namespace rt004.checkpoint2 {
 
     }
 
-    public class Sphere : Solid {
-        public override void Draw(FloatCamera fc)
+    public class Sphere : Solid { 
+		public Sphere(Vector3 pos, Phong model){
+			this.position = pos;
+			this.Model = model;
+		}
+        public override float CalculateT(FloatCamera fc)
         {
-            var P0 = fc.Position;
-			var P1 = fc.Direction;
-			var D = Math.Pow(Vector3.Dot(P1,P0),2) - 4*(Vector3.Dot(P1,P1)*Vector3.Dot(P0,P0));
-			var t0 = (float)(-1*Vector3.Dot(P1,P0) + Math.Sqrt(D)) / (2*Vector3.Dot(P1,P0));
-			var t1 = (float)(-1*Vector3.Dot(P1,P0) - Math.Sqrt(D)) / (2*Vector3.Dot(P1,P0));  
-			var pt0 = P0 + t0*P1;
-			var pt1 = P0 + t1*P1;
+			//t^2(P1.P1) + 2t(P1.P0) + (P0.P0) - 1 = 0
+			if(Intersect(fc)){
+            	var P0 = fc.Position;
+				var P1 = fc.Direction;
+				var a = Vector3.Dot(P1,P1);
+				var b = Vector3.Dot(P1,P0);
+				var c = Vector3.Dot(P0,P0) -1;
+				var D = Math.Pow(b,2) - 4*(a*c);
+				var t0 = (float)(-1*b + Math.Sqrt(D)) / (2*a);
+				var t1 = (float)(-1*b - Math.Sqrt(D)) / (2*a);  
+				var pt0 = P0 + t0*P1;
+				var pt1 = P0 + t1*P1;
+				return t0;
+			}
+			return 0;
         }
 
         public override bool Intersect(FloatCamera fc)
         {
 
-			//t^2(P1.P1) + 2t(P1.P0) + (P0.P0) - 1 = 0
 			var P0 = fc.Position;
 			var P1 = fc.Direction;
-			var D = Math.Pow(Vector3.Dot(P1,P0),2) - 4*(Vector3.Dot(P1,P1)*Vector3.Dot(P0,P0));
+			var a = Vector3.Dot(P1,P1);
+			var b = Vector3.Dot(P1,P0);
+			var c = Vector3.Dot(P0,P0) -1;
+			var D = Math.Pow(b,2) - 4*(a*c);
 			if(D < 0)
 				return false;
 			return true;
@@ -175,5 +216,5 @@ namespace rt004.checkpoint2 {
         }
 
     }
-
+	
 }
