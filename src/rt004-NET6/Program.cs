@@ -1,6 +1,7 @@
 ﻿using Util;
 using System.Text.Json;
-using System.IO;
+using rt004.checkpoint2;
+using System.Numerics;
 //using System.Numerics;
 
 namespace rt004;
@@ -213,13 +214,18 @@ internal class Program
             jp.ReadFile(out wid, out hei, out fileName);
         }
         // HDR image.
-        FloatImage fi = new FloatImage(wid, hei, 3);
-        var color = new float[] { 0.2f, 0.3f, 1f };
-        var color1 = new float[] {0.3f,0.1f,0.5f};
-        var BLACK = new float[] {0f,0f,0f};
-        
-        fi.SavePFM(fileName);
+        var dir = new Vector3(0, 0.9f, 1);
+        var pos = new Vector3(0.60f, -0.00f,-5.60f);
+        var BACKGROUND =new float[] {0.1f,0.2f,0.3f};
+        FloatCamera fc = new FloatCamera(pos, dir,40);
+        ImageSynthetizer img = new ImageSynthetizer(wid,hei,fc,BACKGROUND);
 
-        Console.WriteLine("HDR image is finished.");
+        img.AddLight(new PointLightSource(new Vector3(-10,8,-6),new Vector3(0,1,0)));
+        
+        //img.AddLight(new PointLightSource(new Vector3(0,20,-3), new Vector3(0.3f,0.3f,0.3f)));
+       // img.AddSolid(new InfPlane(new Vector3(-8,1,0),new Phong(new Vector3(1,0,0.2f),10,0.1f,0.8f,0.2f)));
+        img.AddSolid(new Sphere(new Vector3(0, 0.9f, 1),new Phong(new Vector3(1,0,0.2f),1,0.1f,0.8f,0.2f), 0.5f));
+        var x = img.RenderScene();
+        x.SavePFM(fileName);
     }
 }

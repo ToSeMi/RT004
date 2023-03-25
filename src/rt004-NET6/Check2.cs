@@ -2,219 +2,264 @@ using System.Collections.Generic;
 using Util;
 using System.Numerics;
 
-namespace rt004.checkpoint2 {
-	
-	public class ImageSynthetizer {
-		List<Solid> objects;
-		List<LightSrc> lights;
-		FloatCamera camera;
-		string filename;
-		int width, height;
+namespace rt004.checkpoint2
+{
 
-		public ImageSynthetizer(int wid, int hei, string filename, FloatCamera fc) {
-			this.filename = filename;
-			objects = new();
-			lights = new();
-			this.camera = fc;
-			this.width = wid;
-			this.height = hei;
-		}
+    public class ImageSynthetizer
+    {
+        List<Solid> objects;
+        List<LightSrc> lights;
+        FloatCamera camera;
+        int width, height;
+        float[] backgroundColor;
 
-		public void AddSolid(Solid s) {
-			objects.Add(s);
-		}
+        public ImageSynthetizer(int wid, int hei, FloatCamera fc, float[] bgColor)
+        {
+            objects = new();
+            lights = new();
+            this.camera = fc;
+            this.width = wid;
+            this.height = hei;
+            this.backgroundColor = bgColor;
+        }
 
-		public void AddLight(LightSrc light){
-			lights.Add(light);
-		}	
-		public FloatImage RenderScene() {
-			FloatImage fi = new FloatImage(width, height, 3);
-			Vector3 center = camera.Position;
-			Vector3 direction = camera.Direction;
-			float d = 60;
-			Vector3 u = Vector3.UnitY;
-			foreach(var solid in objects){
-				var t = solid.CalculateT(camera);
-				var pt = center + t*direction;
-				Vector3 color = new Vector3();
-				if(t >= 10e-9){ 
-					foreach(var light in lights){
-						float contrib = light.ComputeLightContrib(solid);
-						color += (contrib * pt);
-					}
-				}else {
-					color += new Vector3(1,1,1);
-				}
+        public void AddSolid(Solid s)
+        {
+            objects.Add(s);
+        }
 
-			}
-			
-			return fi;
-		}
-	}
+        public void AddLight(LightSrc light)
+        {
+            lights.Add(light);
+        }
+        public FloatImage RenderScene()
+        {
+            FloatImage fi = new FloatImage(width, height, 3);
+            Vector3 center = camera.Position;
+            Vector3 direction = Vector3.Normalize(camera.Direction);
+            double d = Math.Sqrt(Math.Pow(camera.Direction.X, 2) + Math.Pow(camera.Direction.Y, 2) + Math.Pow(camera.Direction.Z, 2));
+            float fov = camera.Frustrum / 2;
+            double fovToRadians = fov * (Math.PI / 180);
+            var xLength = Math.Tan(fovToRadians) * d;
 
-	public class Phong {
-		Vector3 normal,light,view, color;
-		public readonly float H = 0.5479f;
-		public readonly float kA = 0.3f, kD = 0.3f, kS = 0.4f; // kA + kD + kS = 1
+            var right = (float)xLength * Vector3.UnitX;
+            var up = Vector3.Cross(right, direction);
+
+            var upLeft = center + camera.Direction - new Vector3((float)xLength,0, 0) + up;
+            var upRight = center + camera.Direction + new Vector3((float)xLength,0, 0) + up;
+            var downLeft = center + camera.Direction - new Vector3((float)xLength,0, 0) - up;
+            var downRight = center + camera.Direction + new Vector3((float)xLength,0, 0) - up;
+
+            float pixelHeight = 1/(float)xLength;
+            var ray = upLeft;
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++, ray = new Vector3(ray.X + pixelHeight, ray.Y, ray.Z))
+                {
+					bool foundInt = false;
+                    if (ray.X > upRight.X)
+                    {
+                        ray = new Vector3(upLeft.X, ray.Y + pixelHeight, upLeft.Z);
+                    }
+                    for (int i = 0; i < objects.Count && !foundInt; i++)
+                    {
+						Solid solid = objects[i];
+                        Vector3 color = new Vector3();
+						float t;
+                        if (solid.Intersect(camera.Position, ray,out t))
+                        {
+							foundInt = true;
+                            var pt = camera.Position + t * ray;
+							
+                            foreach (var light in lights)
+                            {
+                                var contrib = light.ComputeLightContrib(solid, camera.Position);
+                                color += (contrib * pt);
+                            }
+                            color += solid.Model!.AmbientLight();
+                            fi.PutPixel(x, y, new float[] { color.X, color.Y, color.Z });
+                        }
+                        else
+                        {
+                            fi.PutPixel(x, y, backgroundColor);
+                        }
+                    }
+
+                }
+                ray = new Vector3(upLeft.X, ray.Y + pixelHeight, upLeft.Z);
+            }
+
+            return fi;
+        }
+    }
+
+    public class Phong
+    {
+        Vector3 color;
+        public readonly float H = 0.5479f;
+        public readonly float kA = 0.3f, kD = 0.3f, kS = 0.4f; // kA + kD + kS = 1
 
 
-		public Phong(Vector3 n, Vector3 l, Vector3 v, Vector3 color, float highlight,float kA, float kD, float kS){
-			normal = n; 
-			light = l;
-			view = v;
-			this.kA = kA;
-			this.kD = kD;
-			this.kS = kS;
-			this.H = highlight;
-			this.color = color;
-		}
-		public float DiffuseComponent( ){
-			return  Vector3.Dot(normal,color)*kD * Vector3.Dot(view,normal);
-		}
-		public Vector3 AmbientLight(){
-			return color*kA;
-		}
-		public float SpecularComponent(Vector3 unitV, Vector3 unitR){
-			return Vector3.Dot(light,color)*kS*(float)Math.Pow(Vector3.Dot(unitR,unitV),H);
-		}
-		
-	}
-	public abstract class ObjectOnMap {
-		protected Vector3 position;
-		public Vector3 Position {get => position; set=> position = value;}
-	}
-	public abstract class Solid : ObjectOnMap {
-		public Phong? Model {set;get;}
-		public abstract float CalculateT(FloatCamera fc);
+        public Phong(Vector3 color, float highlight, float kA, float kD, float kS)
+        {
 
-		public abstract bool Intersect(FloatCamera fc);
-	}
+            this.kA = kA;
+            this.kD = kD;
+            this.kS = kS;
+            this.H = highlight;
+            this.color = color;
+        }
 
-	public abstract class LightSrc : ObjectOnMap  {
-		protected Vector3 Intensity;
-		public abstract float ComputeLightContrib(Solid s);
-	}
+        public float DiffuseComponent(Vector3 view, Vector3 normal)
+        {
+            return Vector3.Dot(normal, color) * kD * Vector3.Dot(view, normal);
+        }
+        public Vector3 AmbientLight()
+        {
+            return color * kA;
+        }
+        public float SpecularComponent(Vector3 light, Vector3 unitV, Vector3 unitR)
+        {
+            return Vector3.Dot(light, color) * kS * (float)Math.Pow(Vector3.Dot(unitR, unitV), H);
+        }
+
+    }
+    public abstract class ObjectOnMap
+    {
+        protected Vector3 position;
+        public Vector3 Position { get => position; set => position = value; }
+    }
+    public abstract class Solid : ObjectOnMap
+    {
+        public Phong? Model { set; get; }
+        public abstract bool Intersect(Vector3 position, Vector3 direction, out float T);
+    }
+
+    public abstract class LightSrc : ObjectOnMap
+    {
+        protected Vector3 Intensity;
+        public abstract Vector3 ComputeLightContrib(Solid s, Vector3 center);
+    }
 
 
-	public class DirectionLightSource : LightSrc {
-		public Vector3 Direction;
+    public class PointLightSource : LightSrc
+    {
 
-		public DirectionLightSource(Vector3 dir, Vector3 intensity) {
-			this.Direction = dir;
-			this.Intensity = intensity;
-		}
-
-		public override float ComputeLightContrib(Solid s) {
-			var E = //model?.AmbientLight() 
-			  s.Model!.DiffuseComponent() 
-			+ s.Model!.SpecularComponent(Intensity, this.Direction); 
-			return E;
-		}
-	}
-	/*
+        public PointLightSource(Vector3 pos, Vector3 intensity)
+        {
+            this.position = pos;
+            this.Intensity = intensity;
+        }
+        public override Vector3 ComputeLightContrib(Solid s, Vector3 center)
+        {
+            var E = //model?.AmbientLight() 
+              s.Model!.DiffuseComponent(Vector3.Normalize(center), Vector3.Normalize(s.Position))
+            + s.Model!.SpecularComponent(this.position, Intensity, s.Position);
+            return Intensity * E;
+        }
+    }
+    /*
 	I want to have a perspective camera
 	*/
-    public class FloatCamera : ObjectOnMap {
+    public class FloatCamera : ObjectOnMap
+    {
 
         Vector3 direction;
-		float frustrum;
-		public FloatImage image;
-		int dimension;
+        float frustrum;
+        int dimension;
 
-		public Vector3 Direction {get => direction; set=> position = value;}
-		public float Frustrum {get=>frustrum; set=> frustrum=value;}
+        public Vector3 Direction { get => direction; set => position = value; }
+        public float Frustrum { get => frustrum; set => frustrum = value; }
 
-		public FloatCamera(FloatImage fi, float x = 0,float y = 0, float z = 0, float a1 = 0, float a2 = 0, float a3 = 0, float frustrum = 0, int dim = 0){
-			this.direction = new Vector3(x,y,z);
-			this.position = new Vector3(a1,a2,a3);
-			this.frustrum = frustrum;
-			
-			this.image = fi;
-			this.dimension = dim;
-		}
-		public FloatCamera(FloatImage fi, Vector3 pos, Vector3 dir, float frustrum = 0){
-			this.position = pos;
-			this.direction = dir;
-			this.frustrum = frustrum;
-			this.image = fi;
-		}
+        public FloatCamera(float x = 0, float y = 0, float z = 0, float a1 = 0, float a2 = 0, float a3 = 0, float frustrum = 0, int dim = 0)
+        {
+            this.direction = new Vector3(x, y, z);
+            this.position = new Vector3(a1, a2, a3);
+            this.frustrum = frustrum;
+
+            this.dimension = dim;
+        }
+        public FloatCamera(Vector3 pos, Vector3 dir, float frustrum = 0)
+        {
+            this.position = pos;
+            this.direction = dir;
+            this.frustrum = frustrum;
+        }
 
     }
 
-    public class Plane : Solid
+    public class InfPlane : Solid
     {
-		public Plane(Vector3 pos, Phong model){
-			this.position = pos;
-			this.Model = model;
-		}
-        public override float CalculateT(FloatCamera fc)
+        public InfPlane(Vector3 pos, Phong model)
         {
-
-			if(Intersect(fc)){
-				var D = Vector3.Distance(fc.Position,this.Position); //D stands here for distance
-
-				var p0 = fc.Position;
-				var p1 = fc.Direction;
-				var n = Position; //i take position here as normal
-            	var t =-1*(Vector3.Dot(n , p0) + D) / (Vector3.Dot(n,p1));
-				var pt = p0 + t*p1; //parametric intersection
-				return t;
-			}return 0;
+            this.position = pos;
+            this.Model = model;
         }
 
-        public override bool Intersect(FloatCamera fc)
+        public override bool Intersect(Vector3 position, Vector3 direction, out float t)
         {
-			var p0 = fc.Position;
-			var p1 = fc.Direction;
-			var n = Position;
-			if((Vector3.Dot(n,p1)) <= 10e-32)
+			
+            var p0 = position;
+            var p1 = direction;
+            var n = Vector3.Normalize(Position);
+            if ((Vector3.Dot(n, p1)) <= 10e-32){
+                t = 0;
 				return false;
-			
-			return true;
-			
-        }
-
-    }
-
-    public class Sphere : Solid { 
-		public Sphere(Vector3 pos, Phong model){
-			this.position = pos;
-			this.Model = model;
-		}
-        public override float CalculateT(FloatCamera fc)
-        {
-			//t^2(P1.P1) + 2t(P1.P0) + (P0.P0) - 1 = 0
-			if(Intersect(fc)){
-            	var P0 = fc.Position;
-				var P1 = fc.Direction;
-				var a = Vector3.Dot(P1,P1);
-				var b = Vector3.Dot(P1,P0);
-				var c = Vector3.Dot(P0,P0) -1;
-				var D = Math.Pow(b,2) - 4*(a*c);
-				var t0 = (float)(-1*b + Math.Sqrt(D)) / (2*a);
-				var t1 = (float)(-1*b - Math.Sqrt(D)) / (2*a);  
-				var pt0 = P0 + t0*P1;
-				var pt1 = P0 + t1*P1;
-				return t0;
 			}
-			return 0;
-        }
+			t = -1 * (Vector3.Dot(n, p0)) / (Vector3.Dot(n, p1));
 
-        public override bool Intersect(FloatCamera fc)
-        {
+            return t >= 0;
 
-			var P0 = fc.Position;
-			var P1 = fc.Direction;
-			var a = Vector3.Dot(P1,P1);
-			var b = Vector3.Dot(P1,P0);
-			var c = Vector3.Dot(P0,P0) -1;
-			var D = Math.Pow(b,2) - 4*(a*c);
-			if(D < 0)
-				return false;
-			return true;
-			
         }
 
     }
-	
+
+    public class Sphere : Solid
+    {
+        float radius;
+        public Sphere(Vector3 pos, Phong model, float radius)
+        {
+            this.position = pos;
+            this.Model = model;
+            this.radius = radius;
+        }
+
+        public override bool Intersect(Vector3 position, Vector3 direction, out float t)
+        {
+			#if false
+            var P0 = position;
+            var P1 = direction;
+            var a = Vector3.Dot(P1, P1);
+            var b = Vector3.Dot(P1, P0);
+            var c = Vector3.Dot(P0, P0) - 1;
+            var D = Math.Pow(b, 2) - 4 * (a * c);
+            var t0 = (float)(-1 * b + Math.Sqrt(D)) / (2 * a);
+            var t1 = (float)(-1 * b - Math.Sqrt(D)) / (2 * a);
+			if(t0 >= 0)
+				t = t0;
+			else if(t1 >= 0)
+				t = t1;
+			else t = 0;
+			return t0 >=0 || t1 >=0;
+			#else
+			//t0 = (v · p1)
+			//D2 = (v · v) - t02
+			//t_D^2 = R2 - D2
+			var v = this.position - position;
+			var t0 = Vector3.Dot(v,direction);
+			var D2 = Vector3.Dot(v,v) - t0*t0;
+			var tD2 = radius*radius - D2;
+			t = 0;
+			if(tD2 < 0) return false;
+			if(t0 - Math.Sqrt(tD2) >= 0){
+				t = t0 - (float)Math.Sqrt(tD2);
+			}else {
+				t = t0 + (float)Math.Sqrt(tD2);
+			}
+			return true;
+			#endif
+        }
+
+    }
+
 }
