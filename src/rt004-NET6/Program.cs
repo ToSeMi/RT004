@@ -11,19 +11,19 @@ namespace rt004;
 I implement here logging system using Strategy Design pattern.
 */
 
-interface ILog
+public interface ILog
 {
     void Log(string info);
 }
 
-class ConsoleLog : ILog
+public class ConsoleLog : ILog
 {
     public void Log(string info)
     {
         System.Console.WriteLine(info);
     }
 }
-class FileLog : ILog
+public class FileLog : ILog
 {
     string filename;
     public FileLog(string fname)
@@ -34,7 +34,7 @@ class FileLog : ILog
     {
         try
         {
-            File.AppendText(info + "\n");
+            File.AppendAllText(filename,info + "\n");
         }
         catch (IOException e)
         {
@@ -43,7 +43,7 @@ class FileLog : ILog
     }
 }
 
-class Logger
+public class Logger 
 {
     ILog currentLog;
     public Logger()
@@ -214,17 +214,16 @@ internal class Program
             jp.ReadFile(out wid, out hei, out fileName);
         }
         // HDR image.
-        var dir = new Vector3(0, 0.9f, 1);
-        var pos = new Vector3(0.60f, -0.00f,-5.60f);
+        var dir = new Vector3(0, 0.1f, 1);
+        var pos = new Vector3(0f, -0.8f,5.6f);
         var BACKGROUND =new float[] {0.1f,0.2f,0.3f};
         FloatCamera fc = new FloatCamera(pos, dir,40);
         ImageSynthetizer img = new ImageSynthetizer(wid,hei,fc,BACKGROUND);
-
         img.AddLight(new PointLightSource(new Vector3(-10,8,-6),new Vector3(0,1,0)));
         
         //img.AddLight(new PointLightSource(new Vector3(0,20,-3), new Vector3(0.3f,0.3f,0.3f)));
-       // img.AddSolid(new InfPlane(new Vector3(-8,1,0),new Phong(new Vector3(1,0,0.2f),10,0.1f,0.8f,0.2f)));
-        img.AddSolid(new Sphere(new Vector3(0, 0.9f, 1),new Phong(new Vector3(1,0,0.2f),1,0.1f,0.8f,0.2f), 0.5f));
+        img.AddSolid(new InfPlane(new Vector3(-8,1,0),new Phong(new Vector3(1,0,0.2f),10,0.1f,0.8f,0.2f)));
+        img.AddSolid(new Sphere(new Vector3(0, 0, 5),new Phong(new Vector3(.2f,0,0.2f),1,0.1f,0.8f,0.2f), 11f));
         var x = img.RenderScene();
         x.SavePFM(fileName);
     }

@@ -12,8 +12,9 @@ namespace rt004.checkpoint2
         FloatCamera camera;
         int width, height;
         float[] backgroundColor;
+		Logger? logger;
 
-        public ImageSynthetizer(int wid, int hei, FloatCamera fc, float[] bgColor)
+        public ImageSynthetizer(int wid, int hei, FloatCamera fc, float[] bgColor, Logger log = null)
         {
             objects = new();
             lights = new();
@@ -21,7 +22,13 @@ namespace rt004.checkpoint2
             this.width = wid;
             this.height = hei;
             this.backgroundColor = bgColor;
+			this.logger = log;
         }
+		//adding this one for loading from a file
+		public ImageSynthetizer(int wid, int hei, FloatCamera fc, float[] bgColor, List<Solid> objects, List<LightSrc> lights) : this(wid, hei, fc, bgColor){
+			this.objects = objects;
+			this.lights = lights;
+		}
 
         public void AddSolid(Solid s)
         {
@@ -49,12 +56,16 @@ namespace rt004.checkpoint2
             var upRight = center + camera.Direction + new Vector3((float)xLength,0, 0) + up;
             var downLeft = center + camera.Direction - new Vector3((float)xLength,0, 0) - up;
             var downRight = center + camera.Direction + new Vector3((float)xLength,0, 0) - up;
-
-            float pixelHeight = 1/(float)xLength;
+			logger?.DoLog($"upLeft={upLeft}\n");
+			logger?.DoLog($"upRight={upRight}\n");
+			logger?.DoLog($"downLeft={downLeft}\n");
+			logger?.DoLog($"downRight={downRight}\n");
+            float pixelHeight = (float)xLength;
             var ray = upLeft;
+			int numOfCasts = 0; //DEBUG ONLY
             for (int y = 0; y < height; y++)
             {
-                for (int x = 0; x < width; x++, ray = new Vector3(ray.X + pixelHeight, ray.Y, ray.Z))
+                for (int x = 0; x < width; x++, ray = new Vector3(ray.X +pixelHeight, ray.Y, ray.Z))
                 {
 					bool foundInt = false;
                     if (ray.X > upRight.X)
@@ -68,8 +79,10 @@ namespace rt004.checkpoint2
 						float t;
                         if (solid.Intersect(camera.Position, ray,out t))
                         {
+							numOfCasts++;
 							foundInt = true;
                             var pt = camera.Position + t * ray;
+							logger?.DoLog($"Object found at {pt})");
 							
                             foreach (var light in lights)
                             {
@@ -226,12 +239,12 @@ namespace rt004.checkpoint2
 
         public override bool Intersect(Vector3 position, Vector3 direction, out float t)
         {
-			#if false
+			#if true //analytic solution
             var P0 = position;
             var P1 = direction;
-            var a = Vector3.Dot(P1, P1);
-            var b = Vector3.Dot(P1, P0);
-            var c = Vector3.Dot(P0, P0) - 1;
+            var a = Vector3.Dot(radius*P1, radius*P1);
+            var b = Vector3.Dot(radius*P1, radius*P0);
+            var c = Vector3.Dot(radius*P0, radius*P0) - 1;
             var D = Math.Pow(b, 2) - 4 * (a * c);
             var t0 = (float)(-1 * b + Math.Sqrt(D)) / (2 * a);
             var t1 = (float)(-1 * b - Math.Sqrt(D)) / (2 * a);
@@ -241,7 +254,7 @@ namespace rt004.checkpoint2
 				t = t1;
 			else t = 0;
 			return t0 >=0 || t1 >=0;
-			#else
+			#else //geometric solution
 			//t0 = (v · p1)
 			//D2 = (v · v) - t02
 			//t_D^2 = R2 - D2
