@@ -214,7 +214,7 @@ internal class Program
             jp.ReadFile(out wid, out hei, out fileName);
         }
         // HDR image.
-        var dir = new Vector3(0, 0.1f, 1);
+        var dir = new Vector3(0-4, 7f, 8);
         var pos = new Vector3(0f, -0.8f,5.6f);
         var BACKGROUND =new float[] {0.1f,0.2f,0.3f};
         FloatCamera fc = new FloatCamera(pos, dir,40);

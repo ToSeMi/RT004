@@ -14,7 +14,7 @@ namespace rt004.checkpoint2
         float[] backgroundColor;
 		Logger? logger;
 
-        public ImageSynthetizer(int wid, int hei, FloatCamera fc, float[] bgColor, Logger log = null)
+        public ImageSynthetizer(int wid, int hei, FloatCamera fc, float[] bgColor, Logger? log = null)
         {
             objects = new();
             lights = new();
@@ -39,27 +39,38 @@ namespace rt004.checkpoint2
         {
             lights.Add(light);
         }
+        double ComputeNorm(Vector3 v){
+            return Math.Sqrt(Math.Pow(v.X, 2) + Math.Pow(v.Y, 2) + Math.Pow(v.Z, 2));
+        }
         public FloatImage RenderScene()
         {
+            logger?.DoLog($"Starting at {DateTime.Now}");
             FloatImage fi = new FloatImage(width, height, 3);
             Vector3 center = camera.Position;
-            Vector3 direction = Vector3.Normalize(camera.Direction);
-            double d = Math.Sqrt(Math.Pow(camera.Direction.X, 2) + Math.Pow(camera.Direction.Y, 2) + Math.Pow(camera.Direction.Z, 2));
+            float d = camera.Direction.Length();//ComputeNorm(camera.Direction);
             float fov = camera.Frustrum / 2;
             double fovToRadians = fov * (Math.PI / 180);
             var xLength = Math.Tan(fovToRadians) * d;
 
+            Vector3 direction = camera.Direction ;
             var right = (float)xLength * Vector3.UnitX;
-            var up = Vector3.Cross(right, direction);
-
-            var upLeft = center + camera.Direction - new Vector3((float)xLength,0, 0) + up;
-            var upRight = center + camera.Direction + new Vector3((float)xLength,0, 0) + up;
-            var downLeft = center + camera.Direction - new Vector3((float)xLength,0, 0) - up;
-            var downRight = center + camera.Direction + new Vector3((float)xLength,0, 0) - up;
-			logger?.DoLog($"upLeft={upLeft}\n");
-			logger?.DoLog($"upRight={upRight}\n");
-			logger?.DoLog($"downLeft={downLeft}\n");
-			logger?.DoLog($"downRight={downRight}\n");
+            var up = Vector3.Cross(right, Vector3.Normalize(direction));
+            var perspectiveCenter = center + camera.Direction;
+            var upLeft = perspectiveCenter - new Vector3((float)xLength,0, 0) + up;
+            var upRight = perspectiveCenter + new Vector3((float)xLength,0, 0) + up;
+            var downLeft = perspectiveCenter - new Vector3((float)xLength,0, 0) - up;
+            var downRight = perspectiveCenter + new Vector3((float)xLength,0, 0) - up;
+            logger?.DoLog($"center={center}");
+            logger?.DoLog($"perspectiveCenter={perspectiveCenter}");
+            logger?.DoLog($"direction={camera.Direction}");
+            logger?.DoLog($"d={d}");
+            logger?.DoLog($"fov={fov}");
+            logger?.DoLog($"xLength={xLength}");
+            logger?.DoLog($"up={up}");
+			logger?.DoLog($"upLeft={upLeft}");
+			logger?.DoLog($"upRight={upRight}");
+			logger?.DoLog($"downLeft={downLeft}");
+			logger?.DoLog($"downRight={downRight}");
             float pixelHeight = (float)xLength;
             var ray = upLeft;
 			int numOfCasts = 0; //DEBUG ONLY
@@ -81,9 +92,7 @@ namespace rt004.checkpoint2
                         {
 							numOfCasts++;
 							foundInt = true;
-                            var pt = camera.Position + t * ray;
-							logger?.DoLog($"Object found at {pt})");
-							
+                            var pt = camera.Position + t * ray;							
                             foreach (var light in lights)
                             {
                                 var contrib = light.ComputeLightContrib(solid, camera.Position);
@@ -101,7 +110,9 @@ namespace rt004.checkpoint2
                 }
                 ray = new Vector3(upLeft.X, ray.Y + pixelHeight, upLeft.Z);
             }
-
+            logger?.DoLog($"numOfCasts={numOfCasts}");
+            
+            logger?.DoLog("------------------------------------------");
             return fi;
         }
     }
@@ -215,7 +226,7 @@ namespace rt004.checkpoint2
             var p0 = position;
             var p1 = direction;
             var n = Vector3.Normalize(Position);
-            if ((Vector3.Dot(n, p1)) <= 10e-32){
+            if ((Vector3.Dot(n, p1)) <= float.Epsilon){
                 t = 0;
 				return false;
 			}
@@ -242,22 +253,19 @@ namespace rt004.checkpoint2
 			#if true //analytic solution
             var P0 = position;
             var P1 = direction;
-            var a = Vector3.Dot(radius*P1, radius*P1);
-            var b = Vector3.Dot(radius*P1, radius*P0);
-            var c = Vector3.Dot(radius*P0, radius*P0) - 1;
+            var a = Vector3.Dot(P1, P1);
+            var b = Vector3.Dot(P1, P0);
+            var c = Vector3.Dot(P0, P0) - radius;
             var D = Math.Pow(b, 2) - 4 * (a * c);
             var t0 = (float)(-1 * b + Math.Sqrt(D)) / (2 * a);
             var t1 = (float)(-1 * b - Math.Sqrt(D)) / (2 * a);
-			if(t0 >= 0)
+			if(t0 >= 0 && t0 > t1)
 				t = t0;
 			else if(t1 >= 0)
 				t = t1;
 			else t = 0;
 			return t0 >=0 || t1 >=0;
 			#else //geometric solution
-			//t0 = (v · p1)
-			//D2 = (v · v) - t02
-			//t_D^2 = R2 - D2
 			var v = this.position - position;
 			var t0 = Vector3.Dot(v,direction);
 			var D2 = Vector3.Dot(v,v) - t0*t0;
