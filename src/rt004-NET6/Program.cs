@@ -213,17 +213,26 @@ internal class Program
             JsonParser jp = new JsonParser(configFileName);
             jp.ReadFile(out wid, out hei, out fileName);
         }
+
+        Sphere sphere = new Sphere(new Vector3(0, 0, 5), new Phong(new Vector3(), 0, 0, 0, 0), 1);
+        sphere.Intersect(new Vector3(), Vector3.UnitZ, out float t);
+
+        Console.WriteLine(t);
+
         // HDR image.
-        var dir = new Vector3(0-4, 7f, 8);
-        var pos = new Vector3(0f, -0.8f,5.6f);
-        var BACKGROUND =new float[] {0.1f,0.2f,0.3f};
+        var pos = new Vector3(0f, 0f,0);
+        var dir = new Vector3(0, 0, 1);
+        var BACKGROUND =new float[] {0,0,0};//{0.1f,0.2f,0.3f};
+        Logger l = new Logger();
+        l.ChangeLogger(new FileLog("change.log"));
         FloatCamera fc = new FloatCamera(pos, dir,40);
-        ImageSynthetizer img = new ImageSynthetizer(wid,hei,fc,BACKGROUND);
+        ImageSynthetizer img = new ImageSynthetizer(wid,hei,fc,BACKGROUND,l);
         img.AddLight(new PointLightSource(new Vector3(-10,8,-6),new Vector3(0,1,0)));
-        
-        //img.AddLight(new PointLightSource(new Vector3(0,20,-3), new Vector3(0.3f,0.3f,0.3f)));
-        img.AddSolid(new InfPlane(new Vector3(-8,1,0),new Phong(new Vector3(1,0,0.2f),10,0.1f,0.8f,0.2f)));
-        img.AddSolid(new Sphere(new Vector3(0, 0, 5),new Phong(new Vector3(.2f,0,0.2f),1,0.1f,0.8f,0.2f), 11f));
+
+        var yellow = new Phong(new Vector3(.2f,0.3f,1f),1,0.1f,0.8f,0.2f);
+
+        //img.AddSolid(new InfPlane(new Vector3(8,-1,0),new Phong(new Vector3(1,0,0.2f),10,0.1f,0.8f,0.2f)));
+        img.AddSolid(new Sphere(new Vector3(0, 0, 5), yellow, 1f));
         var x = img.RenderScene();
         x.SavePFM(fileName);
     }

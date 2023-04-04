@@ -39,27 +39,28 @@ namespace rt004.checkpoint2
         {
             lights.Add(light);
         }
-        double ComputeNorm(Vector3 v){
-            return Math.Sqrt(Math.Pow(v.X, 2) + Math.Pow(v.Y, 2) + Math.Pow(v.Z, 2));
+        float ComputeNorm(Vector3 v){
+            return (float)Math.Sqrt(Math.Pow(v.X, 2) + Math.Pow(v.Y, 2) + Math.Pow(v.Z, 2));
         }
         public FloatImage RenderScene()
         {
             logger?.DoLog($"Starting at {DateTime.Now}");
             FloatImage fi = new FloatImage(width, height, 3);
             Vector3 center = camera.Position;
-            float d = camera.Direction.Length();//ComputeNorm(camera.Direction);
+            float d = camera.Direction.Length();
             float fov = camera.Frustrum / 2;
             double fovToRadians = fov * (Math.PI / 180);
-            var xLength = Math.Tan(fovToRadians) * d;
+            var xLength = (float)Math.Tan(fovToRadians) * d;
 
             Vector3 direction = camera.Direction ;
             var right = (float)xLength * Vector3.UnitX;
             var up = Vector3.Cross(right, Vector3.Normalize(direction));
-            var perspectiveCenter = center + camera.Direction;
-            var upLeft = perspectiveCenter - new Vector3((float)xLength,0, 0) + up;
-            var upRight = perspectiveCenter + new Vector3((float)xLength,0, 0) + up;
-            var downLeft = perspectiveCenter - new Vector3((float)xLength,0, 0) - up;
-            var downRight = perspectiveCenter + new Vector3((float)xLength,0, 0) - up;
+
+            var perspectiveCenter = center + new Vector3(0,0,d);
+            var upLeft = perspectiveCenter - right+ up;
+            var upRight = perspectiveCenter + right+ up;
+            var downLeft = perspectiveCenter - right- up;
+            var downRight = perspectiveCenter + right- up;
             logger?.DoLog($"center={center}");
             logger?.DoLog($"perspectiveCenter={perspectiveCenter}");
             logger?.DoLog($"direction={camera.Direction}");
@@ -71,18 +72,23 @@ namespace rt004.checkpoint2
 			logger?.DoLog($"upRight={upRight}");
 			logger?.DoLog($"downLeft={downLeft}");
 			logger?.DoLog($"downRight={downRight}");
-            float pixelHeight = (float)xLength;
+            float pixelHeight = (float)1f/xLength;
             var ray = upLeft;
 			int numOfCasts = 0; //DEBUG ONLY
             for (int y = 0; y < height; y++)
             {
                 for (int x = 0; x < width; x++, ray = new Vector3(ray.X +pixelHeight, ray.Y, ray.Z))
                 {
-					bool foundInt = false;
+                    bool foundInt = false;
                     if (ray.X > upRight.X)
                     {
                         ray = new Vector3(upLeft.X, ray.Y + pixelHeight, upLeft.Z);
                     }
+
+                    Vector3 top = Vector3.Lerp(upLeft, upRight, x / (float)width);
+                    Vector3 bottom = Vector3.Lerp(downLeft, downRight, x / (float)width);
+                    ray = Vector3.Lerp(top, bottom, y / (float)height);
+
                     for (int i = 0; i < objects.Count && !foundInt; i++)
                     {
 						Solid solid = objects[i];
@@ -95,10 +101,11 @@ namespace rt004.checkpoint2
                             var pt = camera.Position + t * ray;							
                             foreach (var light in lights)
                             {
-                                var contrib = light.ComputeLightContrib(solid, camera.Position);
-                                color += (contrib * pt);
+                              //  var contrib = light.ComputeLightContrib(solid, camera.Position);
+                              //  color += (contrib * pt);
                             }
-                            color += solid.Model!.AmbientLight();
+                            //color += solid.Model!.AmbientLight();
+                            color = new(1,1,1);
                             fi.PutPixel(x, y, new float[] { color.X, color.Y, color.Z });
                         }
                         else
@@ -108,7 +115,7 @@ namespace rt004.checkpoint2
                     }
 
                 }
-                ray = new Vector3(upLeft.X, ray.Y + pixelHeight, upLeft.Z);
+                // ray = new Vector3(upLeft.X, ray.Y + pixelHeight, upLeft.Z);
             }
             logger?.DoLog($"numOfCasts={numOfCasts}");
             
@@ -225,12 +232,13 @@ namespace rt004.checkpoint2
 			
             var p0 = position;
             var p1 = direction;
-            var n = Vector3.Normalize(Position);
+            float D =  (position- this.position).Length();
+            var n = (Position);
             if ((Vector3.Dot(n, p1)) <= float.Epsilon){
                 t = 0;
 				return false;
 			}
-			t = -1 * (Vector3.Dot(n, p0)) / (Vector3.Dot(n, p1));
+			t = -1 * (Vector3.Dot(n, p0) + D) / (Vector3.Dot(n, p1));
 
             return t >= 0;
 
@@ -249,13 +257,13 @@ namespace rt004.checkpoint2
         }
 
         public override bool Intersect(Vector3 position, Vector3 direction, out float t)
-        {
-			#if true //analytic solution
+        {/*/
+			#if false //analytic solution
             var P0 = position;
             var P1 = direction;
             var a = Vector3.Dot(P1, P1);
             var b = Vector3.Dot(P1, P0);
-            var c = Vector3.Dot(P0, P0) - radius;
+            var c = Vector3.Dot(P0, P0) - radius*radius;
             var D = Math.Pow(b, 2) - 4 * (a * c);
             var t0 = (float)(-1 * b + Math.Sqrt(D)) / (2 * a);
             var t1 = (float)(-1 * b - Math.Sqrt(D)) / (2 * a);
@@ -266,7 +274,7 @@ namespace rt004.checkpoint2
 			else t = 0;
 			return t0 >=0 || t1 >=0;
 			#else //geometric solution
-			var v = this.position - position;
+			var v = position - this.position;
 			var t0 = Vector3.Dot(v,direction);
 			var D2 = Vector3.Dot(v,v) - t0*t0;
 			var tD2 = radius*radius - D2;
@@ -279,6 +287,20 @@ namespace rt004.checkpoint2
 			}
 			return true;
 			#endif
+*/          //raycast position
+            var offset = position - this.position;
+            var a = Vector3.Dot(direction,direction);
+            var b = 2*(Vector3.Dot(offset,direction));
+            var c = Vector3.Dot(offset,offset) - radius*radius;
+            var D = b*b - 4 * (a * c);
+            var t0 = (float)(-1 * b - Math.Sqrt(D)) / (2 * a);
+            var t1 = (float)(-1 * b + Math.Sqrt(D)) / (2 * a);
+			if(t0 >= 0 )
+				t = t0;
+			else if(t1 >= 0)
+				t = t1;
+			else t = 0;
+			return t0 >=0 || t1 >=0;
         }
 
     }
