@@ -53,7 +53,7 @@ namespace rt004.checkpoint2
             var xLength = (float)Math.Tan(fovToRadians) * d;
 
             Vector3 direction = camera.Direction ;
-            var right = (float)xLength * Vector3.UnitX;
+            var right = /*Vector3.Cross(Vector3.Normalize(camera.Direction),Vector3.UnitY);*/(float)xLength * Vector3.UnitY;
             var up = Vector3.Cross(right, Vector3.Normalize(direction));
 
             var perspectiveCenter = center + new Vector3(0,0,d);
@@ -77,13 +77,9 @@ namespace rt004.checkpoint2
 			int numOfCasts = 0; //DEBUG ONLY
             for (int y = 0; y < height; y++)
             {
-                for (int x = 0; x < width; x++, ray = new Vector3(ray.X +pixelHeight, ray.Y, ray.Z))
+                for (int x = 0; x < width; x++)
                 {
                     bool foundInt = false;
-                    if (ray.X > upRight.X)
-                    {
-                        ray = new Vector3(upLeft.X, ray.Y + pixelHeight, upLeft.Z);
-                    }
 
                     Vector3 top = Vector3.Lerp(upLeft, upRight, x / (float)width);
                     Vector3 bottom = Vector3.Lerp(downLeft, downRight, x / (float)width);
@@ -101,11 +97,13 @@ namespace rt004.checkpoint2
                             var pt = camera.Position + t * ray;							
                             foreach (var light in lights)
                             {
-                              //  var contrib = light.ComputeLightContrib(solid, camera.Position);
-                              //  color += (contrib * pt);
+                                var viewVector = Vector3.Normalize(pt - solid.Position);
+                                var normalVector = solid.Normal(pt);
+                                var lightVector = Vector3.Normalize(pt - light.Position);
+                                var contrib = light.ComputeLightContrib(solid.Model!, normalVector, lightVector, viewVector);
+                                color += (contrib);
                             }
-                            //color += solid.Model!.AmbientLight();
-                            color = new(1,1,1);
+                           // color += solid.Model!.AmbientLight();
                             fi.PutPixel(x, y, new float[] { color.X, color.Y, color.Z });
                         }
                         else
@@ -115,7 +113,6 @@ namespace rt004.checkpoint2
                     }
 
                 }
-                // ray = new Vector3(upLeft.X, ray.Y + pixelHeight, upLeft.Z);
             }
             logger?.DoLog($"numOfCasts={numOfCasts}");
             
@@ -141,9 +138,9 @@ namespace rt004.checkpoint2
             this.color = color;
         }
 
-        public float DiffuseComponent(Vector3 view, Vector3 normal)
+        public float DiffuseComponent( Vector3 intensity ,Vector3 view, Vector3 normal)
         {
-            return Vector3.Dot(normal, color) * kD * Vector3.Dot(view, normal);
+            return Vector3.Dot(intensity, color) * kD * Vector3.Dot(view, normal);
         }
         public Vector3 AmbientLight()
         {
@@ -163,29 +160,30 @@ namespace rt004.checkpoint2
     public abstract class Solid : ObjectOnMap
     {
         public Phong? Model { set; get; }
+        public abstract Vector3 Normal(Vector3 pos);
         public abstract bool Intersect(Vector3 position, Vector3 direction, out float T);
     }
 
     public abstract class LightSrc : ObjectOnMap
     {
         protected Vector3 Intensity;
-        public abstract Vector3 ComputeLightContrib(Solid s, Vector3 center);
+        public abstract Vector3 ComputeLightContrib(Phong model,Vector3 n, Vector3 l, Vector3 v);
     }
 
 
     public class PointLightSource : LightSrc
     {
-
         public PointLightSource(Vector3 pos, Vector3 intensity)
         {
             this.position = pos;
             this.Intensity = intensity;
         }
-        public override Vector3 ComputeLightContrib(Solid s, Vector3 center)
+        public override Vector3 ComputeLightContrib(Phong model, Vector3 n, Vector3 l, Vector3 v)
         {
+            var R = Vector3.Normalize(2*n*Vector3.Dot(n, l) - l); // Unit reflection vector
             var E = //model?.AmbientLight() 
-              s.Model!.DiffuseComponent(Vector3.Normalize(center), Vector3.Normalize(s.Position))
-            + s.Model!.SpecularComponent(this.position, Intensity, s.Position);
+              model.DiffuseComponent(this.Intensity,v, n)
+            + model.SpecularComponent(this.position, v, R);
             return Intensity * E;
         }
     }
@@ -227,6 +225,8 @@ namespace rt004.checkpoint2
             this.Model = model;
         }
 
+        public override Vector3 Normal(Vector3 pos) => throw new NotImplementedException();
+
         public override bool Intersect(Vector3 position, Vector3 direction, out float t)
         {
 			
@@ -255,39 +255,10 @@ namespace rt004.checkpoint2
             this.Model = model;
             this.radius = radius;
         }
+        public override Vector3 Normal(Vector3 position) => Vector3.Normalize(new Vector3(2 * position.X, 2* position.Y, 2*position.Z));
 
         public override bool Intersect(Vector3 position, Vector3 direction, out float t)
-        {/*/
-			#if false //analytic solution
-            var P0 = position;
-            var P1 = direction;
-            var a = Vector3.Dot(P1, P1);
-            var b = Vector3.Dot(P1, P0);
-            var c = Vector3.Dot(P0, P0) - radius*radius;
-            var D = Math.Pow(b, 2) - 4 * (a * c);
-            var t0 = (float)(-1 * b + Math.Sqrt(D)) / (2 * a);
-            var t1 = (float)(-1 * b - Math.Sqrt(D)) / (2 * a);
-			if(t0 >= 0 && t0 > t1)
-				t = t0;
-			else if(t1 >= 0)
-				t = t1;
-			else t = 0;
-			return t0 >=0 || t1 >=0;
-			#else //geometric solution
-			var v = position - this.position;
-			var t0 = Vector3.Dot(v,direction);
-			var D2 = Vector3.Dot(v,v) - t0*t0;
-			var tD2 = radius*radius - D2;
-			t = 0;
-			if(tD2 < 0) return false;
-			if(t0 - Math.Sqrt(tD2) >= 0){
-				t = t0 - (float)Math.Sqrt(tD2);
-			}else {
-				t = t0 + (float)Math.Sqrt(tD2);
-			}
-			return true;
-			#endif
-*/          //raycast position
+        {
             var offset = position - this.position;
             var a = Vector3.Dot(direction,direction);
             var b = 2*(Vector3.Dot(offset,direction));
