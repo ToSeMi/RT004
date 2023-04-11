@@ -97,13 +97,13 @@ namespace rt004.checkpoint2
                             var pt = camera.Position + t * ray;							
                             foreach (var light in lights)
                             {
-                                var viewVector = Vector3.Normalize(pt - solid.Position);
+                                var viewVector = Vector3.Normalize(center - pt);
                                 var normalVector = solid.Normal(pt);
-                                var lightVector = Vector3.Normalize(pt - light.Position);
+                                var lightVector = Vector3.Normalize(light.Position - pt);
                                 var contrib = light.ComputeLightContrib(solid.Model!, normalVector, lightVector, viewVector);
                                 color += (contrib);
                             }
-                           // color += solid.Model!.AmbientLight();
+                            color += solid.Model!.AmbientLight();
                             fi.PutPixel(x, y, new float[] { color.X, color.Y, color.Z });
                         }
                         else
@@ -138,17 +138,17 @@ namespace rt004.checkpoint2
             this.color = color;
         }
 
-        public float DiffuseComponent( Vector3 intensity ,Vector3 view, Vector3 normal)
+        public Vector3 DiffuseComponent( Vector3 intensity ,Vector3 view, Vector3 normal)
         {
-            return Vector3.Dot(intensity, color) * kD * Vector3.Dot(view, normal);
+            return /*Vector3.Dot(intensity, */color/*)*/ * kD * Math.Max(Vector3.Dot(view, normal),0);
         }
         public Vector3 AmbientLight()
         {
             return color * kA;
         }
-        public float SpecularComponent(Vector3 light, Vector3 unitV, Vector3 unitR)
+        public Vector3 SpecularComponent(Vector3 light, Vector3 unitV, Vector3 unitR)
         {
-            return Vector3.Dot(light, color) * kS * (float)Math.Pow(Vector3.Dot(unitR, unitV), H);
+            return /*Vector3.Dot(light, */color/*)*/ * kS * (float)Math.Pow(Math.Max(Vector3.Dot(unitR, unitV),0), H);
         }
 
     }
@@ -184,7 +184,7 @@ namespace rt004.checkpoint2
             var E = //model?.AmbientLight() 
               model.DiffuseComponent(this.Intensity,v, n)
             + model.SpecularComponent(this.position, v, R);
-            return Intensity * E;
+            return E;
         }
     }
     /*
@@ -255,7 +255,7 @@ namespace rt004.checkpoint2
             this.Model = model;
             this.radius = radius;
         }
-        public override Vector3 Normal(Vector3 position) => Vector3.Normalize(new Vector3(2 * position.X, 2* position.Y, 2*position.Z));
+        public override Vector3 Normal(Vector3 position) => new Vector3(2 * position.X, 2* position.Y, 2*position.Z);
 
         public override bool Intersect(Vector3 position, Vector3 direction, out float t)
         {

@@ -214,11 +214,6 @@ internal class Program
             jp.ReadFile(out wid, out hei, out fileName);
         }
 
-        Sphere sphere = new Sphere(new Vector3(0, 0, 5), new Phong(new Vector3(), 0, 0, 0, 0), 1);
-        sphere.Intersect(new Vector3(), Vector3.UnitZ, out float t);
-
-        Console.WriteLine(t);
-
         // HDR image.
         var pos = new Vector3(0f, 0f,0);
         var dir = new Vector3(0, 0, 1);
@@ -227,7 +222,7 @@ internal class Program
         l.ChangeLogger(new FileLog("change.log"));
         FloatCamera fc = new FloatCamera(pos, dir,40);
         ImageSynthetizer img = new ImageSynthetizer(wid,hei,fc,BACKGROUND,l);
-        img.AddLight(new PointLightSource(new Vector3(-5,8,-1),new Vector3(0,1,0)));
+        img.AddLight(new PointLightSource(new Vector3(0,5,5),new Vector3(1,1,1)));
 
         var yellow = new Phong(new Vector3(1,1,0.2f), 10 ,0.1f,0.8f,0.2f);
         var blue = new Phong(new Vector3(.2f,0.3f,1f), 150 , 0.1f,0.5f,0.5f);
@@ -235,7 +230,7 @@ internal class Program
 
         //img.AddSolid(new InfPlane(new Vector3(8,-1,0),blue);
         img.AddSolid(new Sphere(new Vector3(0, 0, 5), yellow, 1f));
-        img.AddSolid(new Sphere(new Vector3(0, -2, 5), red, 2f));
+       // img.AddSolid(new Sphere(new Vector3(0, -2, 5), red, 2f));
         
         var x = img.RenderScene();
         x.SavePFM(fileName);
