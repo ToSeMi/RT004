@@ -54,8 +54,8 @@ namespace rt004.checkpoint2
 
             Vector3 direction = camera.Direction ;
             var right = //Vector3.Cross(Vector3.Normalize(camera.Direction),Vector3.UnitX);
-						Vector3.Normalize((float)xLength * Vector3.UnitY);
-            right = Vector3.Normalize(right);
+						Vector3.Normalize((float)xLength * Vector3.UnitX);
+            
 			var up = Vector3.Cross(right, Vector3.Normalize(direction));
 			
             var perspectiveCenter = center + new Vector3(0,0,d);
@@ -96,13 +96,14 @@ namespace rt004.checkpoint2
                             var pt = camera.Position + t * ray;							
                             foreach (var light in lights)
                             {
-                                var viewVector = Vector3.Normalize(center - pt);
+                                var viewVector = Vector3.Normalize(solid.Position - pt);
                                 var normalVector = solid.Normal(pt);
                                 var lightVector = Vector3.Normalize(light.Position - pt);
                                 var contrib = light.ComputeLightContrib(solid.Model!, normalVector, lightVector, viewVector);
-                                color += (contrib);
+                                color += contrib;
                             }
-							color /= d*d;
+							color /= (d*d);
+                            
                             color += solid.Model!.AmbientLight();
                             fi.PutPixel(x, y, new float[] { color.X, color.Y, color.Z });
                         }
@@ -124,8 +125,8 @@ namespace rt004.checkpoint2
     public class Phong
     {
         Vector3 color;
-        public readonly float H = 0.5479f;
-        public readonly float kA = 0.3f, kD = 0.3f, kS = 0.4f; // kA + kD + kS = 1
+        public readonly float H ;
+        public readonly float kA , kD , kS ; // kA + kD + kS = 1
 
 
         public Phong(Vector3 color, float highlight, float kA, float kD, float kS)
@@ -140,7 +141,7 @@ namespace rt004.checkpoint2
 
         public Vector3 DiffuseComponent( Vector3 intensity ,Vector3 view, Vector3 normal)
         {
-            return color * intensity * kD * Math.Max(Vector3.Dot(view, normal),0);
+            return color * kD * Math.Max(Vector3.Dot(view, (normal)),0);
         }
         public Vector3 AmbientLight()
         {
@@ -148,7 +149,7 @@ namespace rt004.checkpoint2
         }
         public Vector3 SpecularComponent(Vector3 light, Vector3 unitV, Vector3 unitR)
         {
-            return color * light * kS * (float)Math.Pow(Math.Max(Vector3.Dot(unitR, unitV),0), H);
+            return  light * kS * (float)Math.Pow(Math.Max(Vector3.Dot(unitR, unitV),0), H);
         }
 
     }
@@ -180,9 +181,10 @@ namespace rt004.checkpoint2
         }
         public override Vector3 ComputeLightContrib(Phong model, Vector3 n, Vector3 l, Vector3 v)
         {
-            var R = Vector3.Normalize(2*n*Vector3.Dot(n, l) - l); // Unit reflection vector
-            var E = model.DiffuseComponent(this.Intensity,v, n) + model.SpecularComponent(this.position, v, R);
-            return E;
+            var R = (2*n*Vector3.Dot(n, l) - l); // Unit reflection vector
+            var E = model.DiffuseComponent(this.Intensity,v, n) 
+            + model.SpecularComponent(this.Intensity, v, R);
+            return Intensity*E;
         }
     }
     /*
@@ -253,7 +255,7 @@ namespace rt004.checkpoint2
             this.Model = model;
             this.radius = radius;
         }
-        public override Vector3 Normal(Vector3 position) => new Vector3(2 * position.X, 2* position.Y, 2*position.Z);
+        public override Vector3 Normal(Vector3 position) => Vector3.Normalize(new Vector3(2 * position.X, 2* position.Y, 2*position.Z));
 
         public override bool Intersect(Vector3 position, Vector3 direction, out float t)
         {
