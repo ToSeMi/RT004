@@ -222,16 +222,16 @@ internal class Program
         l.ChangeLogger(new FileLog("change.log"));
         FloatCamera fc = new FloatCamera(pos, dir,60);
         ImageSynthetizer img = new ImageSynthetizer(wid,hei,fc,BACKGROUND,l);
-        img.AddLight(new PointLightSource(new Vector3(1.5f, -3,5),new Vector3(1,1,1)));
-      //  img.AddLight(new PointLightSource(new Vector3(2,-3,5),new Vector3(0.3f,1,0)));
+        img.AddLight(new PointLightSource(new Vector3(5, 5,5),new Vector3(1,1,1)));
+       // img.AddLight(new PointLightSource(new Vector3(2,-3,4),new Vector3(0.3f,1,0)));
 
-        var yellow = new Phong(new Vector3(1,1,0.2f), 10 ,0.1f,0.8f,0.2f);
+        var yellow = new Phong(new Vector3(1,1,0.2f), 10 , 0.1f,0.8f,0.2f);
         var blue = new Phong(new Vector3(.2f,0.3f,1f), 150 , 0.1f,0.5f,0.5f);
-        var red = new Phong(new Vector3(.8f,.2f,0.4f), 10 ,0.1f,0.6f,0.4f);
+        var red = new Phong(new Vector3(.8f,.2f,0.4f), 10 , 0.1f,0.6f,0.4f);
 
        // img.AddSolid(new InfPlane(new Vector3(0,-1,4),blue));
         img.AddSolid(new Sphere(new Vector3(0, 0, 5), red, 1f));
-        img.AddSolid(new Sphere(new Vector3(-0.5211f, 2, 6), blue, 0.3f));
+        img.AddSolid(new Sphere(new Vector3(0, 2, 10), yellow, 5f));
         
         var x = img.RenderScene();
         x.SavePFM(fileName);

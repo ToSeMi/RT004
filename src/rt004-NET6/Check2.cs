@@ -53,16 +53,15 @@ namespace rt004.checkpoint2
             var xLength = (float)Math.Tan(fovToRadians) * d;
 
             Vector3 direction = camera.Direction ;
-            var right = //Vector3.Cross(Vector3.Normalize(camera.Direction),Vector3.UnitX);
-						Vector3.Normalize((float)xLength * Vector3.UnitX);
+            var right = Vector3.Normalize((float)xLength * -1 *Vector3.UnitX);
             
 			var up = Vector3.Cross(right, Vector3.Normalize(direction));
 			
             var perspectiveCenter = center + new Vector3(0,0,d);
-            var upLeft = perspectiveCenter - right+ up;
-            var upRight = perspectiveCenter + right+ up;
-            var downLeft = perspectiveCenter - right- up;
-            var downRight = perspectiveCenter + right- up;
+            var upLeft = perspectiveCenter + right+ up;
+            var upRight = perspectiveCenter - right+ up;
+            var downLeft = perspectiveCenter + right- up;
+            var downRight = perspectiveCenter - right- up;
             logger?.DoLog($"center={center}");
             logger?.DoLog($"perspectiveCenter={perspectiveCenter}");
             logger?.DoLog($"direction={camera.Direction}");
@@ -74,6 +73,7 @@ namespace rt004.checkpoint2
 			logger?.DoLog($"upRight={upRight}");
 			logger?.DoLog($"downLeft={downLeft}");
 			logger?.DoLog($"downRight={downRight}");
+
 			int numOfCasts = 0; //DEBUG ONLY
             for (int y = 0; y < height; y++)
             {
@@ -96,9 +96,9 @@ namespace rt004.checkpoint2
                             var pt = camera.Position + t * ray;							
                             foreach (var light in lights)
                             {
-                                var viewVector = Vector3.Normalize(solid.Position - pt);
+                                var viewVector = Vector3.Normalize(solid.Position - pt - center );
                                 var normalVector = solid.Normal(pt);
-                                var lightVector = Vector3.Normalize(light.Position - pt);
+                                var lightVector = Vector3.Normalize(solid.Position - pt - light.Position);
                                 var contrib = light.ComputeLightContrib(solid.Model!, normalVector, lightVector, viewVector);
                                 color += contrib;
                             }
@@ -141,7 +141,8 @@ namespace rt004.checkpoint2
 
         public Vector3 DiffuseComponent( Vector3 intensity ,Vector3 view, Vector3 normal)
         {
-            return color * kD * Math.Max(Vector3.Dot(view, (normal)),0);
+            var alpha = Math.Max(Vector3.Dot(view, (normal)),0);
+            return color * kD * alpha;
         }
         public Vector3 AmbientLight()
         {
@@ -149,7 +150,7 @@ namespace rt004.checkpoint2
         }
         public Vector3 SpecularComponent(Vector3 light, Vector3 unitV, Vector3 unitR)
         {
-            return  light * kS * (float)Math.Pow(Math.Max(Vector3.Dot(unitR, unitV),0), H);
+            return  light * kS * (float)Math.Max(Math.Pow(Vector3.Dot(unitR, unitV),H), 0);
         }
 
     }
@@ -181,10 +182,10 @@ namespace rt004.checkpoint2
         }
         public override Vector3 ComputeLightContrib(Phong model, Vector3 n, Vector3 l, Vector3 v)
         {
-            var R = (2*n*Vector3.Dot(n, l) - l); // Unit reflection vector
+            var R = Vector3.Normalize(2*n*Vector3.Dot(n, l) - l); // Unit reflection vector
             var E = model.DiffuseComponent(this.Intensity,v, n) 
             + model.SpecularComponent(this.Intensity, v, R);
-            return Intensity*E;
+            return E;
         }
     }
     /*
