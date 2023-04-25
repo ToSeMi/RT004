@@ -1,6 +1,7 @@
 ﻿using Util;
 using System.Text.Json;
-using System.IO;
+using rt004.checkpoint2;
+using System.Numerics;
 //using System.Numerics;
 
 namespace rt004;
@@ -10,19 +11,19 @@ namespace rt004;
 I implement here logging system using Strategy Design pattern.
 */
 
-interface ILog
+public interface ILog
 {
     void Log(string info);
 }
 
-class ConsoleLog : ILog
+public class ConsoleLog : ILog
 {
     public void Log(string info)
     {
         System.Console.WriteLine(info);
     }
 }
-class FileLog : ILog
+public class FileLog : ILog
 {
     string filename;
     public FileLog(string fname)
@@ -33,7 +34,7 @@ class FileLog : ILog
     {
         try
         {
-            File.AppendText(info + "\n");
+            File.AppendAllText(filename,info + "\n");
         }
         catch (IOException e)
         {
@@ -42,7 +43,7 @@ class FileLog : ILog
     }
 }
 
-class Logger
+public class Logger 
 {
     ILog currentLog;
     public Logger()
@@ -212,15 +213,29 @@ internal class Program
             JsonParser jp = new JsonParser(configFileName);
             jp.ReadFile(out wid, out hei, out fileName);
         }
-        // HDR image.
-        FloatImage fi = new FloatImage(wid, hei, 3);
-        var color = new float[] { 0.2f, 0.3f, 1f };
-        var color1 = new float[] {0.3f,0.1f,0.5f};
-        var BLACK = new float[] {0f,0f,0f};
-        MidpointDraw(fi, wid, hei, color);
-        FloodQueue(fi, wid / 2, hei / 2, color1,BLACK);
-        fi.SavePFM(fileName);
 
-        Console.WriteLine("HDR image is finished.");
+        // HDR image.
+        var pos = new Vector3(0f, 0f,0);
+        var dir = new Vector3(0, 0, 1);
+        var BACKGROUND =new float[] {0.1f,0.2f,0.3f};
+        Logger l = new Logger();
+        l.ChangeLogger(new FileLog("change.log"));
+        FloatCamera fc = new FloatCamera(pos, dir,40);
+        ImageSynthetizer img = new ImageSynthetizer(wid,hei,fc,BACKGROUND,l);
+        img.AddLight(new PointLightSource(new Vector3(5,5,5),new Vector3(1,1,1)));
+        img.AddLight(new PointLightSource(new Vector3(2,-3,4),new Vector3(0.1f,0.1f,0.1f)));
+
+        var yellow = new Phong(new Vector3(1,1,0.2f), 10 , 0.1f,0.8f,0.2f);
+        var blue = new Phong(new Vector3(.2f,0.3f,1f), 150 , 0.1f,0.5f,0.5f);
+        var red = new Phong(new Vector3(.8f,.2f,0.4f), 10 , 0.1f,0.6f,0.4f);
+
+       // img.AddSolid(new InfPlane(new Vector3(0,-1,4),blue));
+       
+        img.AddSolid(new Sphere(new Vector3(-1,1,3), blue, .25f));
+        img.AddSolid(new Sphere(new Vector3(0, 0, 5), red, 1f));
+        img.AddSolid(new Sphere(new Vector3(0, 2, 10), yellow, 5f));
+        
+        var x = img.RenderScene();
+        x.SavePFM(fileName);
     }
 }

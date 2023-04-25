@@ -353,3 +353,5 @@ MigrationBackup/
 *.hdr
 *.pfm
 log.txt
+.vscode/launch.json
+.vscode/tasks.json
