@@ -97,7 +97,8 @@ namespace rt004.checkpoint2
         }
         public Vector3 SpecularComponent(Vector3 light, Vector3 unitV, Vector3 unitR)
         {
-            return light * kS * (float)Math.Max(Math.Pow(Vector3.Dot(unitR, unitV), H), 0);
+            var beta = (float)Math.Pow(Vector3.Dot(unitR, unitV), H);
+            return light * kS * Math.Max(beta,0);
         }
 
     }
@@ -132,7 +133,7 @@ namespace rt004.checkpoint2
             var R = Vector3.Normalize(2 * n * Vector3.Dot(n, l) - l); // Unit reflection vector
             var E = model.DiffuseComponent(this.Intensity, v, n)
             + model.SpecularComponent(this.Intensity, v, R);
-            return E;
+            return E*Intensity;
         }
     }
     /*
@@ -180,11 +181,11 @@ namespace rt004.checkpoint2
 
             var up = Vector3.Cross(right, Vector3.Normalize(direction));
 
-            var perspectiveCenter = center + new Vector3(0, 0, d);
-            upLeft = perspectiveCenter + right + up;
-            upRight = perspectiveCenter - right + up;
-            downLeft = perspectiveCenter + right - up;
-            downRight = perspectiveCenter - right - up;
+            var perspectiveCenter = center + direction;
+            upLeft = perspectiveCenter - right + up;
+            upRight = perspectiveCenter + right + up;
+            downLeft = perspectiveCenter - right - up;
+            downRight = perspectiveCenter + right - up;
             logger?.DoLog($"center={center}");
             logger?.DoLog($"perspectiveCenter={perspectiveCenter}");
             logger?.DoLog($"direction={this.Direction}");
@@ -217,10 +218,12 @@ namespace rt004.checkpoint2
                     var pt = this.Position + t * ray;
                     foreach (var light in lights)
                     {
-                        var viewVector = Vector3.Normalize(solid.Position - pt - Position);
-                        var normalVector = solid.Normal(pt);
-                        var lightVector = Vector3.Normalize(solid.Position - pt - light.Position);
-                        var contrib = light.ComputeLightContrib(solid.Model!, normalVector, lightVector, viewVector);
+                        var viewVector = Vector3.Normalize(Position - pt);
+                        var normalVector = solid.Normal(  pt);
+                        var lightVector = Vector3.Normalize(light.Position - pt);
+                        var aaaaa = Vector3.Dot(normalVector,lightVector);
+                        Vector3 contrib = light.ComputeLightContrib(solid.Model!, normalVector, lightVector, viewVector);
+                        if(aaaaa > 0)
                         color += contrib;
                     }
                     color /= (d * d);
@@ -274,8 +277,8 @@ namespace rt004.checkpoint2
             this.Model = model;
             this.radius = radius;
         }
-        public override Vector3 Normal(Vector3 position) => Vector3.Normalize(new Vector3(2 * position.X, 2 * position.Y, 2 * position.Z));
-
+        public override Vector3 Normal(Vector3 position) => //Vector3.Normalize(2*(position));
+                                                            Vector3.Normalize(position-this.position);
         public override bool Intersect(Vector3 position, Vector3 direction, out float t)
         {
             var offset = position - this.position;

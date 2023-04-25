@@ -220,9 +220,9 @@ internal class Program
         var BACKGROUND =new float[] {0.1f,0.2f,0.3f};
         Logger l = new Logger();
         l.ChangeLogger(new FileLog("change.log"));
-        FloatCamera fc = new FloatCamera(pos, dir,60);
+        FloatCamera fc = new FloatCamera(pos, dir,40);
         ImageSynthetizer img = new ImageSynthetizer(wid,hei,fc,BACKGROUND,l);
-        img.AddLight(new PointLightSource(new Vector3(5, 5,5),new Vector3(1,1,1)));
+        img.AddLight(new PointLightSource(new Vector3(0,0,0),new Vector3(1,1,1)));
        // img.AddLight(new PointLightSource(new Vector3(2,-3,4),new Vector3(0.3f,1,0)));
 
         var yellow = new Phong(new Vector3(1,1,0.2f), 10 , 0.1f,0.8f,0.2f);
@@ -230,6 +230,8 @@ internal class Program
         var red = new Phong(new Vector3(.8f,.2f,0.4f), 10 , 0.1f,0.6f,0.4f);
 
        // img.AddSolid(new InfPlane(new Vector3(0,-1,4),blue));
+       
+        img.AddSolid(new Sphere(new Vector3(-1,1,3), blue, .25f));
         img.AddSolid(new Sphere(new Vector3(0, 0, 5), red, 1f));
         img.AddSolid(new Sphere(new Vector3(0, 2, 10), yellow, 5f));
         
