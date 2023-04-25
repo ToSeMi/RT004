@@ -86,9 +86,9 @@ namespace rt004.checkpoint2
             this.color = color;
         }
 
-        public Vector3 DiffuseComponent(Vector3 intensity, Vector3 view, Vector3 normal)
+        public Vector3 DiffuseComponent(Vector3 intensity, Vector3 light, Vector3 normal)
         {
-            var alpha = Math.Max(Vector3.Dot(view, (normal)), 0);
+            var alpha = Math.Max(Vector3.Dot(light, (normal)), 0);
             return color * kD * alpha;
         }
         public Vector3 AmbientLight()
@@ -130,9 +130,11 @@ namespace rt004.checkpoint2
         }
         public override Vector3 ComputeLightContrib(Phong model, Vector3 n, Vector3 l, Vector3 v)
         {
-            var R = Vector3.Normalize(2 * n * Vector3.Dot(n, l) - l); // Unit reflection vector
-            var E = model.DiffuseComponent(this.Intensity, v, n)
-            + model.SpecularComponent(this.Intensity, v, R);
+            var gamma = Vector3.Dot(n, l);
+            var R = Vector3.Normalize(2 * n * Math.Max(gamma, 0) - l); // Unit reflection vector
+            var diffuse = model.DiffuseComponent(this.Intensity, l, n) ;
+            var specular = model.SpecularComponent(this.Intensity, v, R);
+            var E = diffuse + specular;
             return E*Intensity;
         }
     }
@@ -182,10 +184,10 @@ namespace rt004.checkpoint2
             var up = Vector3.Cross(right, Vector3.Normalize(direction));
 
             var perspectiveCenter = center + direction;
-            upLeft = perspectiveCenter - right + up;
-            upRight = perspectiveCenter + right + up;
-            downLeft = perspectiveCenter - right - up;
-            downRight = perspectiveCenter + right - up;
+            upLeft = perspectiveCenter + right + up;
+            upRight = perspectiveCenter - right + up;
+            downLeft = perspectiveCenter + right - up;
+            downRight = perspectiveCenter - right - up;
             logger?.DoLog($"center={center}");
             logger?.DoLog($"perspectiveCenter={perspectiveCenter}");
             logger?.DoLog($"direction={this.Direction}");
@@ -221,9 +223,9 @@ namespace rt004.checkpoint2
                         var viewVector = Vector3.Normalize(Position - pt);
                         var normalVector = solid.Normal(  pt);
                         var lightVector = Vector3.Normalize(light.Position - pt);
-                        var aaaaa = Vector3.Dot(normalVector,lightVector);
+                       // var aaaaa = Vector3.Dot(normalVector,lightVector);
                         Vector3 contrib = light.ComputeLightContrib(solid.Model!, normalVector, lightVector, viewVector);
-                        if(aaaaa > 0)
+                        
                         color += contrib;
                     }
                     color /= (d * d);

@@ -222,8 +222,8 @@ internal class Program
         l.ChangeLogger(new FileLog("change.log"));
         FloatCamera fc = new FloatCamera(pos, dir,40);
         ImageSynthetizer img = new ImageSynthetizer(wid,hei,fc,BACKGROUND,l);
-        img.AddLight(new PointLightSource(new Vector3(0,0,0),new Vector3(1,1,1)));
-       // img.AddLight(new PointLightSource(new Vector3(2,-3,4),new Vector3(0.3f,1,0)));
+        img.AddLight(new PointLightSource(new Vector3(5,5,5),new Vector3(1,1,1)));
+        img.AddLight(new PointLightSource(new Vector3(2,-3,4),new Vector3(0.1f,0.1f,0.1f)));
 
         var yellow = new Phong(new Vector3(1,1,0.2f), 10 , 0.1f,0.8f,0.2f);
         var blue = new Phong(new Vector3(.2f,0.3f,1f), 150 , 0.1f,0.5f,0.5f);
