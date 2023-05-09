@@ -200,6 +200,20 @@ namespace rt004.checkpoint2
             logger?.DoLog($"downLeft={downLeft}");
             logger?.DoLog($"downRight={downRight}");
         }
+        
+        bool IsShadowed(Vector3 position, Vector3 direction, Solid currentSolid,List<Solid> objects, List<LightSrc> lights){
+            for (int i = 0; i < objects.Count; i++)
+            {
+                Solid solid = objects[i];
+                if (solid.Intersect(position, direction, out float t) && solid != currentSolid)
+                {
+                    return true;
+                }
+
+            }
+            return false;
+        }
+
         ///<summary>Renders one pixeel from one raycast</summary>
         public Vector3 RenderPixel(int x, int y, int height, int width, List<Solid> objects, List<LightSrc> lights, Vector3 backgroundColor, ref int numOfCasts)
         {
@@ -223,8 +237,9 @@ namespace rt004.checkpoint2
                         var viewVector = Vector3.Normalize(Position - pt);
                         var normalVector = solid.Normal(  pt);
                         var lightVector = Vector3.Normalize(light.Position - pt);
-                       // var aaaaa = Vector3.Dot(normalVector,lightVector);
-                        Vector3 contrib = light.ComputeLightContrib(solid.Model!, normalVector, lightVector, viewVector);
+                        Vector3 contrib = Vector3.Zero;
+                        if(!IsShadowed(pt,lightVector,solid,objects,lights))
+                            contrib = light.ComputeLightContrib(solid.Model!, normalVector, lightVector, viewVector);
                         
                         color += contrib;
                     }
@@ -242,17 +257,18 @@ namespace rt004.checkpoint2
 
     public class InfPlane : Solid
     {
-        public InfPlane(Vector3 pos, Phong model)
+        Vector3 normal;
+        public InfPlane(Vector3 pos, Vector3 norm,Phong model)
         {
             this.position = pos;
             this.Model = model;
+            this.normal = norm;
         }
 
-        public override Vector3 Normal(Vector3 pos) => throw new NotImplementedException();
+        public override Vector3 Normal(Vector3 pos) => normal;
 
         public override bool Intersect(Vector3 position, Vector3 direction, out float t)
         {
-
             var p0 = position;
             var p1 = direction;
             float D = (position - this.position).Length();
