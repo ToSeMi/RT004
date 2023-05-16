@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Util;
 using System.Numerics;
+using System;
 
 namespace rt004.checkpoint2
 {
@@ -91,7 +92,7 @@ namespace rt004.checkpoint2
 
         public Vector3 DiffuseComponent(Vector3 intensity, Vector3 light, Vector3 normal)
         {
-            var alpha = Math.Max(Vector3.Dot(light, (normal)), 0);
+            var alpha = MathF.Max(Vector3.Dot(light, (normal)), 0);
             return color * kD * alpha;
         }
         public Vector3 AmbientLight()
@@ -100,18 +101,18 @@ namespace rt004.checkpoint2
         }
         public Vector3 SpecularComponent(Vector3 light, Vector3 unitV, Vector3 unitR)
         {
-            var beta = (float)Math.Pow(Vector3.Dot(unitR, unitV), H);
-            return light * kS * Math.Max(beta, 0);
+            var beta = MathF.Pow(Vector3.Dot(unitR, unitV), H);
+            return light * kS * MathF.Max(beta, 0);
         }
 
     }
-    public abstract class ObjectOnMap
+    public interface ObjectOnMap
     {
-        protected Vector3 position;
-        public Vector3 Position { get => position; set => position = value; }
+        public Vector3 Position { get; set; }
     }
     public abstract class Solid : ObjectOnMap
     {
+        public Vector3 Position {get;set;}
         public Phong? Model { set; get; }
         public abstract Vector3 Normal(Vector3 pos);
         public abstract bool Intersect(Vector3 position, Vector3 direction, out float T);
@@ -119,6 +120,7 @@ namespace rt004.checkpoint2
 
     public abstract class LightSrc : ObjectOnMap
     {
+        public Vector3 Position {get;set;}
         protected Vector3 Intensity;
         public abstract Vector3 ComputeLightContrib(Phong model, Vector3 n, Vector3 l, Vector3 v);
     }
@@ -128,45 +130,51 @@ namespace rt004.checkpoint2
     {
         public PointLightSource(Vector3 pos, Vector3 intensity)
         {
-            this.position = pos;
+            this.Position = pos;
             this.Intensity = intensity;
         }
         public override Vector3 ComputeLightContrib(Phong model, Vector3 n, Vector3 l, Vector3 v)
         {
             var gamma = Vector3.Dot(n, l);
-            var R = Vector3.Normalize(2 * n * Math.Max(gamma, 0) - l); // Unit reflection vector
+            var R = Vector3.Normalize(2 * n * MathF.Max(gamma, 0) - l); // Unit reflection vector
             var diffuse = model.DiffuseComponent(this.Intensity, l, n);
             var specular = model.SpecularComponent(this.Intensity, v, R);
             var E = diffuse + specular;
             return E * Intensity;
         }
     }
+
+    public interface  Camera : ObjectOnMap {
+        Scene? currentScene {set;get;}
+        Vector3 Direction {set;get;}
+        float frustrum {set;get;} 
+    }
+
     /*
 	I want to have a perspective camera
 	*/
-    public class FloatCamera : ObjectOnMap
+    public class FloatCamera : Camera
     {
-        Scene currentScene;
+        public Vector3 Position {set;get;}
+        public Scene? currentScene {set;get;}
+        public float frustrum {set;get;}
         Vector3 direction;
-        float frustrum;
-        int dimension;
 
-        public Vector3 Direction { get => direction; set => position = value; }
+        public Vector3 Direction { get => direction; set => direction = value; }
         public float Frustrum { get => frustrum; set => frustrum = value; }
 
-        public FloatCamera(Scene scene,float x = 0, float y = 0, float z = 0, float a1 = 0, float a2 = 0, float a3 = 0, float frustrum = 0, int dim = 0)
+        public FloatCamera(Scene scene,float x = 0, float y = 0, float z = 0, float a1 = 0, float a2 = 0, float a3 = 0, float frustrum = 0)
         {
             this.currentScene = scene;
             this.direction = new Vector3(x, y, z);
-            this.position = new Vector3(a1, a2, a3);
+            this.Position = new Vector3(a1, a2, a3);
             this.frustrum = frustrum;
 
-            this.dimension = dim;
         }
         public FloatCamera(Scene scene,Vector3 pos, Vector3 dir, float frustrum = 0)
         {
             this.currentScene = scene;
-            this.position = pos;
+            this.Position = pos;
             this.direction = dir;
             this.frustrum = frustrum;
         }
@@ -180,8 +188,8 @@ namespace rt004.checkpoint2
             Vector3 center = this.Position;
             d = this.Direction.Length();
             float fov = this.Frustrum / 2;
-            double fovToRadians = fov * (Math.PI / 180);
-            var xLength = (float)Math.Tan(fovToRadians) * d;
+            float fovToRadians = fov * (MathF.PI / 180);
+            var xLength = MathF.Tan(fovToRadians) * d;
 
             Vector3 direction = this.Direction;
             var right = Vector3.Normalize((float)xLength * -1 * Vector3.UnitX);
@@ -208,7 +216,7 @@ namespace rt004.checkpoint2
 
         bool IsShadowed(Vector3 position, Vector3 direction, Solid currentSolid)
         {
-            for (int i = 0; i < currentScene.objects.Count; i++)
+            for (int i = 0; i < currentScene!.objects.Count; i++)
             {
                 Solid solid = currentScene.objects[i];
                 if (solid.Intersect(position, direction, out float t) && solid != currentSolid)
@@ -223,22 +231,24 @@ namespace rt004.checkpoint2
         ///<summary>Renders one pixeel from one raycast</summary>
         public Vector3 RenderPixel(int x, int y, int height, int width,  ref int numOfCasts)
         {
-
-            Vector3 top = Vector3.Lerp(upLeft, upRight, x / (float)Math.Max(height, width));
-            Vector3 bottom = Vector3.Lerp(downLeft, downRight, x / (float)Math.Max(height, width));
-            Vector3 ray = Vector3.Lerp(top, bottom, y / (float)Math.Max(height, width));
-            return RayTrace(this.position,ray, ref numOfCasts);
+            if(x == 307 && y == 247){
+                System.Console.WriteLine("breakpoint time");
+            }
+            Vector3 top = Vector3.Lerp(upLeft, upRight, x / MathF.Max(height, width));
+            Vector3 bottom = Vector3.Lerp(downLeft, downRight, x / MathF.Max(height, width));
+            Vector3 ray = Vector3.Lerp(top, bottom, y / MathF.Max(height, width));
+            return RayTrace(this.Position,ray, ref numOfCasts);
 
         }
 
-        Vector3 RayTrace(Vector3 position,Vector3 ray, ref int numOfCasts, int depth = 0)
+        Vector3 RayTrace(Vector3 position,Vector3 ray, ref int numOfCasts, int depth = 0, Solid? currentSolid = null)
         {
             bool foundInt = false;
-            for (int i = 0; i < currentScene.objects.Count && !foundInt; i++)
+            for (int i = 0; i < currentScene!.objects.Count && !foundInt; i++)
             {
                 Solid solid = currentScene.objects[i];
                 Vector3 color = new Vector3();
-                if (solid.Intersect(position, ray, out float t))
+                if (solid.Intersect(position, ray, out float t) && solid != currentSolid)
                 {
                     numOfCasts++;
                     foundInt = true;
@@ -247,23 +257,22 @@ namespace rt004.checkpoint2
                     var normalVector = solid.Normal(pt);
                     foreach (var light in currentScene.lights)
                     {
-                        var lightVector = Vector3.Normalize(light.Position - pt);
+                        var lightVector = Vector3.Normalize(light.Position - pt);                        
                         Vector3 contrib = Vector3.Zero;
                         if (!IsShadowed(pt, lightVector, solid))
                             contrib = light.ComputeLightContrib(solid.Model!, normalVector, lightVector, viewVector);
 
-                        color += contrib;
+                        color += contrib ; 
+                        
+                    }
+                    var gamma = Vector3.Dot(normalVector, viewVector);
+                    var R = Vector3.Normalize(2 * normalVector * MathF.Max(gamma, 0) - viewVector); // Unit reflection vector
+                    if(depth + 1 < RayTracingDepth) {
+                        color += solid.Model!.kS* RayTrace(pt,R,ref numOfCasts,depth+1,solid);
                     }
                     color /= (d * d);
-
-                  //  if (++depth >= RayTracingDepth)
-                    {
-                        color += solid.Model!.AmbientLight();
-                        return color;
-                    }
-                  //  var gamma = Vector3.Dot(n, l);
-                 //   var R = Vector3.Normalize(2 * n * Math.Max(gamma, 0) - l); // Unit reflection vector
-                 //   color += RenderPixel();
+                    color += solid.Model!.AmbientLight();
+                    return color;
                 }
 
             }
@@ -277,7 +286,7 @@ namespace rt004.checkpoint2
         Vector3 normal;
         public InfPlane(Vector3 pos, Vector3 norm, Phong model)
         {
-            this.position = pos;
+            this.Position = pos;
             this.Model = model;
             this.normal = norm;
         }
@@ -288,7 +297,7 @@ namespace rt004.checkpoint2
         {
             var p0 = position;
             var p1 = direction;
-            float D = (position - this.position).Length();
+            float D = (position - this.Position).Length();
             var n = Normal(Vector3.One);
             if ((Vector3.Dot(n, p1)) <= float.Epsilon)
             {
@@ -308,21 +317,21 @@ namespace rt004.checkpoint2
         float radius;
         public Sphere(Vector3 pos, Phong model, float radius)
         {
-            this.position = pos;
+            this.Position = pos;
             this.Model = model;
             this.radius = radius;
         }
         public override Vector3 Normal(Vector3 position) => //Vector3.Normalize(2*(position));
-                                                            Vector3.Normalize(position - this.position);
+                                                            Vector3.Normalize(position - this.Position);
         public override bool Intersect(Vector3 position, Vector3 direction, out float t)
         {
-            var offset = position - this.position;
+            var offset = position - this.Position;
             var a = Vector3.Dot(direction, direction);
             var b = 2 * (Vector3.Dot(offset, direction));
             var c = Vector3.Dot(offset, offset) - radius * radius;
             var D = b * b - 4 * (a * c);
-            var t0 = (float)(-1 * b - Math.Sqrt(D)) / (2 * a);
-            var t1 = (float)(-1 * b + Math.Sqrt(D)) / (2 * a);
+            var t0 = (float)(-1 * b - MathF.Sqrt(D)) / (2 * a);
+            var t1 = (float)(-1 * b + MathF.Sqrt(D)) / (2 * a);
             if (t0 >= 0)
                 t = t0;
             else if (t1 >= 0)
