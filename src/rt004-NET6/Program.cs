@@ -1,4 +1,4 @@
-using Util;
+﻿using Util;
 using System.Text.Json;
 using rt004.checkpoint2;
 using System.Numerics;
@@ -224,14 +224,14 @@ internal class Program
         scene.AddLight(new PointLightSource(new Vector3(5,5,5),new Vector3(1,1,1)));
         scene.AddLight(new PointLightSource(new Vector3(2,-3,4),new Vector3(0.1f,0.1f,0.1f)));
 
-        var yellow = new Phong(new Vector3(1,1,0.2f), 10 , 0.1f,0.8f,0.2f);
-        var blue = new Phong(new Vector3(.2f,0.3f,1f), 150 , 0.1f,0.5f,0.5f);
-        var red = new Phong(new Vector3(.8f,.2f,0.4f), 10 , 0.1f,0.6f,0.4f);
+        var yellow = new Phong(new Vector3(1,1,0.2f), 10 , 0.1f,0.8f,0.2f, 1);
+        var blue = new Phong(new Vector3(.2f,0.3f,1f), 150 , 0.1f,0.5f,0.5f,1.4f);
+        var red = new Phong(new Vector3(.8f,.2f,0.4f), 10 , 0.1f,0.6f,0.4f,1);
 
-        scene.AddSolid(new InfPlane(new Vector3(0.0f, -1.3f, 0.0f),Vector3.UnitY,blue));
+        //scene.AddSolid(new InfPlane(new Vector3(0.0f, -1.3f, 0.0f),Vector3.UnitY,blue));
        
         scene.AddSolid(new Sphere(new Vector3(-1,1,3), blue, .25f));
-        scene.AddSolid(new Sphere(new Vector3(0, 0, 5), red, 1f));
+        scene.AddSolid(new Sphere(new Vector3(2f, 0, 5), red, 1f));
         scene.AddSolid(new Sphere(new Vector3(0, 2, 10), yellow, 5f));
         FloatCamera fc = new FloatCamera(scene,pos, dir,40);
         ImageSynthetizer img = new ImageSynthetizer(wid,hei,fc,l);

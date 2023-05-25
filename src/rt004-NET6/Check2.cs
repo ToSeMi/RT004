@@ -6,15 +6,17 @@ using System;
 namespace rt004.checkpoint2
 {
 
-    public class Scene {
+    public class Scene
+    {
 
-        public List<Solid> objects {private set;get;}
-        public List<LightSrc> lights {private set; get;}
+        public List<Solid> objects { private set; get; }
+        public List<LightSrc> lights { private set; get; }
         float[] backgroundColor;
 
-        public Vector3 BackgroundColor {get => new Vector3(backgroundColor[0], backgroundColor[1],backgroundColor[2]);}
+        public Vector3 BackgroundColor { get => new Vector3(backgroundColor[0], backgroundColor[1], backgroundColor[2]); }
 
-        public Scene(float[] background){
+        public Scene(float[] background)
+        {
             this.objects = new();
             this.lights = new();
             this.backgroundColor = background;
@@ -78,9 +80,9 @@ namespace rt004.checkpoint2
         Vector3 color;
         public readonly float H;
         public readonly float kA, kD, kS; // kA + kD + kS = 1
+        public readonly float INDEX_LOMU;
 
-
-        public Phong(Vector3 color, float highlight, float kA, float kD, float kS)
+        public Phong(Vector3 color, float highlight, float kA, float kD, float kS, float indexOfReflection)
         {
 
             this.kA = kA;
@@ -88,6 +90,7 @@ namespace rt004.checkpoint2
             this.kS = kS;
             this.H = highlight;
             this.color = color;
+            this.INDEX_LOMU = indexOfReflection;
         }
 
         public Vector3 DiffuseComponent(Vector3 intensity, Vector3 light, Vector3 normal)
@@ -99,10 +102,19 @@ namespace rt004.checkpoint2
         {
             return color * kA;
         }
-        public Vector3 SpecularComponent(Vector3 light, Vector3 unitV, Vector3 unitR)
+
+        float FresnelEquationsSchlickAprox(Vector3 V, Vector3 H, Vector3 l, Vector3 n)
         {
+            var c = Vector3.Dot(V, H);
+            return c + (1 - c) * MathF.Pow(1 - Vector3.Dot(l, n), 5);
+        }
+        public Vector3 SpecularComponent(Vector3 light, Vector3 unitV, Vector3 unitR, Vector3 normal)
+        {
+            var h = (light + unitV) / (light + unitV).Length();
+
+            var schl = FresnelEquationsSchlickAprox(unitV, h, light, normal);
             var beta = MathF.Pow(Vector3.Dot(unitR, unitV), H);
-            return light * kS * MathF.Max(beta, 0);
+            return light * kS * schl * MathF.Max(beta, 0);
         }
 
     }
@@ -112,7 +124,7 @@ namespace rt004.checkpoint2
     }
     public abstract class Solid : ObjectOnMap
     {
-        public Vector3 Position {get;set;}
+        public Vector3 Position { get; set; }
         public Phong? Model { set; get; }
         public abstract Vector3 Normal(Vector3 pos);
         public abstract bool Intersect(Vector3 position, Vector3 direction, out float T);
@@ -120,7 +132,7 @@ namespace rt004.checkpoint2
 
     public abstract class LightSrc : ObjectOnMap
     {
-        public Vector3 Position {get;set;}
+        public Vector3 Position { get; set; }
         protected Vector3 Intensity;
         public abstract Vector3 ComputeLightContrib(Phong model, Vector3 n, Vector3 l, Vector3 v);
     }
@@ -138,16 +150,17 @@ namespace rt004.checkpoint2
             var gamma = Vector3.Dot(n, l);
             var R = Vector3.Normalize(2 * n * MathF.Max(gamma, 0) - l); // Unit reflection vector
             var diffuse = model.DiffuseComponent(this.Intensity, l, n);
-            var specular = model.SpecularComponent(this.Intensity, v, R);
+            var specular = model.SpecularComponent(this.Intensity, v, R, n);
             var E = diffuse + specular;
             return E * Intensity;
         }
     }
 
-    public interface  Camera : ObjectOnMap {
-        Scene? currentScene {set;get;}
-        Vector3 Direction {set;get;}
-        float frustrum {set;get;} 
+    public interface Camera : ObjectOnMap
+    {
+        Scene? currentScene { set; get; }
+        Vector3 Direction { set; get; }
+        float frustrum { set; get; }
     }
 
     /*
@@ -155,15 +168,15 @@ namespace rt004.checkpoint2
 	*/
     public class FloatCamera : Camera
     {
-        public Vector3 Position {set;get;}
-        public Scene? currentScene {set;get;}
-        public float frustrum {set;get;}
+        public Vector3 Position { set; get; }
+        public Scene? currentScene { set; get; }
+        public float frustrum { set; get; }
         Vector3 direction;
 
         public Vector3 Direction { get => direction; set => direction = value; }
         public float Frustrum { get => frustrum; set => frustrum = value; }
 
-        public FloatCamera(Scene scene,float x = 0, float y = 0, float z = 0, float a1 = 0, float a2 = 0, float a3 = 0, float frustrum = 0)
+        public FloatCamera(Scene scene, float x = 0, float y = 0, float z = 0, float a1 = 0, float a2 = 0, float a3 = 0, float frustrum = 0)
         {
             this.currentScene = scene;
             this.direction = new Vector3(x, y, z);
@@ -171,7 +184,7 @@ namespace rt004.checkpoint2
             this.frustrum = frustrum;
 
         }
-        public FloatCamera(Scene scene,Vector3 pos, Vector3 dir, float frustrum = 0)
+        public FloatCamera(Scene scene, Vector3 pos, Vector3 dir, float frustrum = 0)
         {
             this.currentScene = scene;
             this.Position = pos;
@@ -229,19 +242,61 @@ namespace rt004.checkpoint2
         }
         const int RayTracingDepth = 10;
         ///<summary>Renders one pixeel from one raycast</summary>
-        public Vector3 RenderPixel(int x, int y, int height, int width,  ref int numOfCasts)
+        public Vector3 RenderPixel(int x, int y, int height, int width, ref int numOfCasts)
         {
-            if(x == 307 && y == 247){
+            if (x == 307 && y == 247)
+            {
                 System.Console.WriteLine("breakpoint time");
             }
             Vector3 top = Vector3.Lerp(upLeft, upRight, x / MathF.Max(height, width));
             Vector3 bottom = Vector3.Lerp(downLeft, downRight, x / MathF.Max(height, width));
             Vector3 ray = Vector3.Lerp(top, bottom, y / MathF.Max(height, width));
-            return RayTrace(this.Position,ray, ref numOfCasts);
+            return RayTrace(this.Position, ray, ref numOfCasts);
 
         }
+        Vector3 refract(Vector3 light, Vector3 normal, float outIndexRefract)
+        {
+            float cosAlpha = Vector3.Dot(light, normal);
+            float inIndexRefract = 1;
+            if (cosAlpha < 0)
+            {
+                cosAlpha = -cosAlpha;
+            }
+            else
+            {
+                float temp = inIndexRefract;
+                inIndexRefract = outIndexRefract;
+                outIndexRefract = temp; ;
+            }
+            float n12 = outIndexRefract / inIndexRefract;
+            float sinBeta = MathF.Sqrt(1 - n12 * n12 * cosAlpha * cosAlpha);
+            if (sinBeta < 0) return Vector3.Zero;
+            return n12 * light + (n12 * cosAlpha - sinBeta) * normal;
+        }
+        float fresnel(Vector3 light, Vector3 normal, float outIndexRefract)
+        {
+            float cosAlpha = Vector3.Dot(light, normal);
+            float inIndexRefract = 1;
+            if (cosAlpha < 0)
+            {
+                cosAlpha = -cosAlpha;
+            }
+            else
+            {
+                float temp = inIndexRefract;
+                inIndexRefract = outIndexRefract;
+                outIndexRefract = temp; ;
+            }
+            float sinBeta = outIndexRefract / inIndexRefract * MathF.Sqrt(MathF.Max(0, 1 - cosAlpha * cosAlpha));
+            if (sinBeta >= 1f) return 1;
+            float cosBeta = MathF.Sqrt(1 - sinBeta * sinBeta);
+            float Rs = ((outIndexRefract * cosAlpha) - (inIndexRefract * cosBeta)) / ((outIndexRefract * cosAlpha) + (inIndexRefract * cosBeta));
+            float Rp = ((inIndexRefract * cosAlpha) - (outIndexRefract * cosBeta)) / ((inIndexRefract * cosAlpha) + (outIndexRefract * cosBeta));
 
-        Vector3 RayTrace(Vector3 position,Vector3 ray, ref int numOfCasts, int depth = 0, Solid? currentSolid = null)
+            return (Rs * Rs + Rp * Rp) / 2;
+        }
+
+        Vector3 RayTrace(Vector3 position, Vector3 ray, ref int numOfCasts, int depth = 0, Solid? currentSolid = null)
         {
             bool foundInt = false;
             for (int i = 0; i < currentScene!.objects.Count && !foundInt; i++)
@@ -255,28 +310,36 @@ namespace rt004.checkpoint2
                     var pt = position + t * ray;
                     var viewVector = Vector3.Normalize(Position - pt);
                     var normalVector = solid.Normal(pt);
+                    //hi= (li + v) / |li + v|
                     foreach (var light in currentScene.lights)
                     {
-                        var lightVector = Vector3.Normalize(light.Position - pt);                        
+                        var lightVector = Vector3.Normalize(light.Position - pt);
+                        float kr = fresnel(lightVector, normalVector, solid.Model!.INDEX_LOMU);
+
+
                         Vector3 contrib = Vector3.Zero;
                         if (!IsShadowed(pt, lightVector, solid))
                             contrib = light.ComputeLightContrib(solid.Model!, normalVector, lightVector, viewVector);
 
-                        color += contrib ; 
-                        
+                        color += contrib / (d * d);
+
                     }
+
+
+
                     var gamma = Vector3.Dot(normalVector, viewVector);
                     var R = Vector3.Normalize(2 * normalVector * MathF.Max(gamma, 0) - viewVector); // Unit reflection vector
-                    if(depth + 1 < RayTracingDepth) {
-                        color += solid.Model!.kS* RayTrace(pt,R,ref numOfCasts,depth+1,solid);
-                    }
-                    color /= (d * d);
                     color += solid.Model!.AmbientLight();
+                    if (depth + 1 < RayTracingDepth)
+                    {
+                        color += solid.Model!.kS * RayTrace(pt, R, ref numOfCasts, depth + 1, solid) + RayTrace(pt,refract(viewVector,normalVector,solid.Model!.INDEX_LOMU),ref numOfCasts,depth+1,solid);
+                    }
                     return color;
                 }
 
             }
-            return currentScene.BackgroundColor;
+            if (depth == 0) return currentScene.BackgroundColor;
+            return Vector3.Zero;
         }
 
     }
