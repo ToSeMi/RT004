@@ -80,7 +80,7 @@ namespace rt004.checkpoint2
         Vector3 color;
         public readonly float H;
         public readonly float kA, kD, kS; // kA + kD + kS = 1
-        public readonly float INDEX_LOMU;
+        public readonly float ReflectionIndex;
 
         public Phong(Vector3 color, float highlight, float kA, float kD, float kS, float indexOfReflection)
         {
@@ -90,7 +90,7 @@ namespace rt004.checkpoint2
             this.kS = kS;
             this.H = highlight;
             this.color = color;
-            this.INDEX_LOMU = indexOfReflection;
+            this.ReflectionIndex = indexOfReflection;
         }
 
         public Vector3 DiffuseComponent(Vector3 intensity, Vector3 light, Vector3 normal)
@@ -310,13 +310,9 @@ namespace rt004.checkpoint2
                     var pt = position + t * ray;
                     var viewVector = Vector3.Normalize(Position - pt);
                     var normalVector = solid.Normal(pt);
-                    //hi= (li + v) / |li + v|
                     foreach (var light in currentScene.lights)
                     {
                         var lightVector = Vector3.Normalize(light.Position - pt);
-                        float kr = fresnel(lightVector, normalVector, solid.Model!.INDEX_LOMU);
-
-
                         Vector3 contrib = Vector3.Zero;
                         if (!IsShadowed(pt, lightVector, solid))
                             contrib = light.ComputeLightContrib(solid.Model!, normalVector, lightVector, viewVector);
@@ -325,14 +321,14 @@ namespace rt004.checkpoint2
 
                     }
 
-
-
                     var gamma = Vector3.Dot(normalVector, viewVector);
                     var R = Vector3.Normalize(2 * normalVector * MathF.Max(gamma, 0) - viewVector); // Unit reflection vector
                     color += solid.Model!.AmbientLight();
+                    var kr = fresnel(viewVector,normalVector,solid.Model!.ReflectionIndex);
                     if (depth + 1 < RayTracingDepth)
                     {
-                        color += solid.Model!.kS * RayTrace(pt, R, ref numOfCasts, depth + 1, solid) + RayTrace(pt,refract(viewVector,normalVector,solid.Model!.INDEX_LOMU),ref numOfCasts,depth+1,solid);
+                        color +=  kr* RayTrace(pt, R, ref numOfCasts, depth + 1, solid) + 
+                                  (1-kr)*  RayTrace(pt,refract(viewVector,normalVector,solid.Model!.ReflectionIndex),ref numOfCasts,depth+1,solid);
                     }
                     return color;
                 }
