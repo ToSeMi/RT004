@@ -34,7 +34,7 @@ public class FileLog : ILog
     {
         try
         {
-            File.AppendAllText(filename,info + "\n");
+            File.WriteAllText(filename,info + "\n");
         }
         catch (IOException e)
         {
@@ -215,8 +215,8 @@ internal class Program
         }
 
         // HDR image.
-        var pos = new Vector3(0f, 0f,0);
-        var dir = new Vector3(0, 0, 1);
+        var pos = new Vector3(0f, 0f, 0f);
+        var dir = new Vector3(0.00f,0f, 1);
         var BACKGROUND =new float[] {0.1f,0.2f,0.3f};
         Logger l = new Logger();
         l.ChangeLogger(new FileLog("change.log"));
@@ -224,15 +224,18 @@ internal class Program
         scene.AddLight(new PointLightSource(new Vector3(5,5,5),new Vector3(1,1,1)));
         scene.AddLight(new PointLightSource(new Vector3(2,-3,4),new Vector3(0.1f,0.1f,0.1f)));
 
-        var yellow = new Phong(new Vector3(1,1,0.2f), 10 , 0.1f,0.8f,0.2f, 1);
-        var blue = new Phong(new Vector3(.2f,0.3f,1f), 150 , 0.1f,0.5f,0.5f,1.4f);
-        var red = new Phong(new Vector3(.8f,.2f,0.4f), 10 , 0.1f,0.6f,0.4f,1);
+        var yellow = new Phong(new Vector3(1,1,0.2f), 10 , 0.1f,0.8f,0.2f, 1f);
+        var blue = new Phong(new Vector3(.2f,0.3f,1f), 150 , 0.1f,0.5f,0.5f,1.5f);
+        var red = new Phong(new Vector3(.8f,.2f,0.4f), 10 , 0.1f,0.6f,0.4f,1.5f);
+        var white = new Phong(new Vector3(.9f,.9f,.9f),80,0.1f,0.6f,0.4f,1.5f);
 
-        //scene.AddSolid(new InfPlane(new Vector3(0.0f, -1.3f, 0.0f),Vector3.UnitY,blue));
+     //   scene.AddSolid(new InfPlane(new Vector3(0.0f, -1f, 0.0f),Vector3.UnitY,white));
        
         scene.AddSolid(new Sphere(new Vector3(-1,1,3), blue, .25f));
-        scene.AddSolid(new Sphere(new Vector3(2f, 0, 5), red, 1f));
-        scene.AddSolid(new Sphere(new Vector3(0, 2, 10), yellow, 5f));
+        scene.AddSolid(new Sphere(new Vector3(10f, 5, 75), red, 10f));
+        scene.AddSolid(new Sphere(new Vector3(0, -4, 10), yellow, 5f));
+
+        scene.AddSolid(new Sphere(new Vector3(0, .0f, 30), white, 20f));
         FloatCamera fc = new FloatCamera(scene,pos, dir,40);
         ImageSynthetizer img = new ImageSynthetizer(wid,hei,fc,l);
         
