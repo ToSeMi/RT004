@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Util;
 using System.Numerics;
-using System;
+using System.Text.Json;
 
 namespace rt004.checkpoint2
 {
@@ -33,6 +33,11 @@ namespace rt004.checkpoint2
         public void AddLight(LightSrc light)
         {
             lights.Add(light);
+        }
+
+        public void SaveToFile(string fileName) {
+            string savable = JsonSerializer.Serialize(this);
+            File.WriteAllText(fileName,savable);
         }
 
         class SolidComparer : IComparer<Solid>
@@ -93,7 +98,7 @@ namespace rt004.checkpoint2
             return fi;
         }
     }
-
+    [Serializable]
     public class Phong
     {
         Vector3 color;
@@ -112,6 +117,11 @@ namespace rt004.checkpoint2
             this.RefractionIndex = indexOfRefraction;
             refl = indexOfRefraction > 1f;
             refr = indexOfRefraction > 1f;
+        }
+
+        public Phong(Vector3 color, float highlight, float kA, float kD, float kS, float indexOfRefraction, bool reflective, bool refractive) : this(color,highlight,kA,kD,kS,indexOfRefraction) {
+            refl = reflective;
+            refr = refractive;
         }
 
         public Vector3 DiffuseComponent(Vector3 intensity, Vector3 light, Vector3 normal)
@@ -153,6 +163,7 @@ namespace rt004.checkpoint2
     {
         public Vector3 Position { get; set; }
     }
+    [Serializable]
     public abstract class Solid : ObjectOnMap
     {
         public Vector3 Position { get; set; }
@@ -161,7 +172,7 @@ namespace rt004.checkpoint2
         public abstract bool Intersect(Vector3 position, Vector3 direction, out float T);
 
     }
-
+    [Serializable]
     public abstract class LightSrc : ObjectOnMap 
     {
         public Vector3 Position { get; set; }
@@ -205,25 +216,26 @@ namespace rt004.checkpoint2
         public Scene? currentScene { set; get; }
         public float frustrum { set; get; }
         Vector3 direction;
-        const int RayTracingDepth = 10;
+        readonly int RayTracingDepth;
 
         public Vector3 Direction { get => direction; set => direction = value; }
         public float Frustrum { get => frustrum; set => frustrum = value; }
 
-        public FloatCamera(Scene scene, float x = 0, float y = 0, float z = 0, float a1 = 0, float a2 = 0, float a3 = 0, float frustrum = 0)
+        public FloatCamera(Scene scene, float x = 0, float y = 0, float z = 0, float a1 = 0, float a2 = 0, float a3 = 0, float frustrum = 0, int rtDepth = 10)
         {
             this.currentScene = scene;
             this.direction = new Vector3(x, y, z);
             this.Position = new Vector3(a1, a2, a3);
             this.frustrum = frustrum;
-
+            this.RayTracingDepth = rtDepth;
         }
-        public FloatCamera(Scene scene, Vector3 pos, Vector3 dir, float frustrum = 0)
+        public FloatCamera(Scene scene, Vector3 pos, Vector3 dir, float frustrum = 0,int rtDepth = 10)
         {
             this.currentScene = scene;
             this.Position = pos;
             this.direction = dir;
             this.frustrum = frustrum;
+            this.RayTracingDepth = rtDepth;
         }
 
         private Vector3 upLeft, upRight, downLeft, downRight;
@@ -401,14 +413,14 @@ namespace rt004.checkpoint2
 
         public override bool Intersect(Vector3 position, Vector3 direction, out float t)
         {
-            float D = Vector3.Dot(normal,direction);
-            if (D < float.Epsilon)
+            float denominator = Vector3.Dot(normal,direction);
+            if (MathF.Abs(denominator) > 0.0000001f)
             {
-                t = 0;
-                return false;
+                t = Vector3.Dot(this.Position - position, normal) / denominator;
+                return t >= 0;
             }
-            t = -1 * Vector3.Dot(this.Position - position, normal) / D;
-            return t >= 0;
+            t = 0;
+            return false;
         }
     }
 
