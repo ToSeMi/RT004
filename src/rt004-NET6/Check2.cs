@@ -98,6 +98,7 @@ namespace rt004.checkpoint2
             return fi;
         }
     }
+
     [Serializable]
     public class Phong
     {
@@ -132,6 +133,13 @@ namespace rt004.checkpoint2
         public Vector3 AmbientLight()
         {
             return color * kA;
+        }
+
+        public float Shade(Vector3 viewVector, Vector3 normalVector) {
+            var nom = (RefractionIndex - 1) * (RefractionIndex -1);
+            var denom = (RefractionIndex + 1) * (RefractionIndex +1);
+            var c = nom/denom;
+            return c + (1 - c) * MathF.Pow(1 - Vector3.Dot(viewVector, normalVector), 5);
         }
 
         float SchlickAprox(Vector3 V, Vector3 H, Vector3 l, Vector3 n)
@@ -288,11 +296,6 @@ namespace rt004.checkpoint2
         ///<summary>Renders one pixeel from one raycast</summary>
         public Vector3 RenderPixel(int x, int y, int height, int width, ref int numOfCasts)
         {
-            if (x == 337 && y == 279)
-            {
-                System.Console.WriteLine("breakpoint time");
-            }
-
             Vector3 top = Vector3.Lerp(upLeft, upRight, x / MathF.Max(height, width));
             Vector3 bottom = Vector3.Lerp(downLeft, downRight, x / MathF.Max(height, width));
             Vector3 ray = Vector3.Lerp(top, bottom, y / MathF.Max(height, width));
@@ -316,38 +319,8 @@ namespace rt004.checkpoint2
             if (sinBeta < 0) return Vector3.Zero;
             return (n12 * cosAlpha -sinBeta)* normal - n12*light;
         }
-        float fresnel(Vector3 light, Vector3 normal, float outIndexRefract)
-        {
-            float cosAlpha = Math.Clamp(Vector3.Dot(light, normal),-1,1) ;
-            float inIndexRefract = 1;
-            
-            if (cosAlpha < 0)
-            {
-                cosAlpha = -cosAlpha;
-            }
-            else
-            {
-                float temp = inIndexRefract;
-                inIndexRefract = outIndexRefract;
-                outIndexRefract = temp;
-                normal = normal*(-1);
-            }
-            float sinBeta = inIndexRefract / outIndexRefract * MathF.Sqrt(MathF.Max(0, 1 - cosAlpha * cosAlpha));
-            if (sinBeta >= 1f) return 1;
-            float cosBeta = MathF.Sqrt(1 - sinBeta * sinBeta);
-            float Rs = ((outIndexRefract * cosAlpha) - (inIndexRefract * cosBeta)) / ((outIndexRefract * cosAlpha) + (inIndexRefract * cosBeta));
-            float Rp = ((inIndexRefract * cosAlpha) - (outIndexRefract * cosBeta)) / ((inIndexRefract * cosAlpha) + (outIndexRefract * cosBeta));
 
-            return (Rs * Rs + Rp * Rp) / 2;
-        }
 
-        float schlick(Vector3 view, Vector3 normal, float refractIndex)
-        {
-            var nom = (refractIndex - 1) * (refractIndex -1);
-            var denom = (refractIndex + 1) * (refractIndex +1);
-            var c = nom/denom;
-            return c + (1 - c) * MathF.Pow(1 - Vector3.Dot(view, normal), 5);
-        }
         Vector3 reflect(Vector3 normalVector, Vector3 viewVector) {
             var gamma = Vector3.Dot(normalVector, viewVector);
             return Vector3.Normalize(2 * normalVector * MathF.Max(gamma, 0) - viewVector); // Unit reflection vector
@@ -374,9 +347,8 @@ namespace rt004.checkpoint2
 
                     }
                     color += solid.Model!.AmbientLight();
-                    var kr = schlick(viewVector,normalVector,solid.Model!.RefractionIndex);//fresnel(viewVector,normalVector,solid.Model!.RefractionIndex);
-                    
-                    
+                    var kr = solid.Model!.Shade(viewVector,normalVector);
+                      
                     if (depth + 1 < RayTracingDepth)
                     {
                         if(solid.Model.IsReflective()) {
