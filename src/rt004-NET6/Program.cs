@@ -229,7 +229,6 @@ internal class Program
         Scene scene = new Scene(BACKGROUND);
         scene.AddLight(new PointLightSource(new Vector3(5,5,5),new Vector3(1,1,1)));
         scene.AddLight(new PointLightSource(new Vector3(2,-3,4),new Vector3(0.1f,0.1f,0.1f)));
-
         var yellow = new Phong(new Vector3(1,1,0.2f), 10 , 0.1f,0.8f,0.2f, 1f);
         var blue = new Phong(new Vector3(.2f,0.3f,1f), 150 , 0.1f,0.5f,0.5f,1.5f,true,true);
         var red = new Phong(new Vector3(.8f,.2f,0.4f), 10 , 0.1f,0.6f,0.4f,1.5f,true,false);
@@ -247,7 +246,6 @@ internal class Program
         scene.AddSolid(new Sphere(new Vector3(10f, 12, 75), red, 10f));
         scene.AddSolid(new Sphere(new Vector3(0, -4, 10), yellow, 5f));
         scene.AddSolid(new Sphere(new Vector3(0, .0f, 30), white, 20f));
-
         FloatCamera fc = new FloatCamera(scene,pos, dir,40);
         ImageSynthetizer img = new ImageSynthetizer(wid,hei,fc,l);
         
