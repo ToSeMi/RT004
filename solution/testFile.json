@@ -1,1 +1,124 @@
-{"objects":[{"x":0,"y":-4,"z":10,"Model":{"color1":1,"color2":1,"color3":0.2,"H":10,"kA":0.1,"kD":0.8,"kS":0.2,"RefractionIndex":1}},{"x":0,"y":0,"z":30,"Model":{"color1":0.9,"color2":0.9,"color3":0.9,"H":80,"kA":0.1,"kD":0.6,"kS":0.4,"RefractionIndex":1.5}},{"x":10,"y":12,"z":75,"Model":{"color1":0.8,"color2":0.2,"color3":0.4,"H":10,"kA":0.1,"kD":0.6,"kS":0.4,"RefractionIndex":1.5}}],"lights":[{},{}],"BackgroundColor":{}}
+{
+    "objects": [
+        {
+            "id":0,
+            "type": 0,
+            "Model_id": 0,
+            "Solid_type_id": 0
+        },
+        {
+            "id":1,
+            "type": 0,
+            "Model_id": 1,
+            "Solid_type_id": 1
+        },
+        {
+
+            "id":2,
+            "type": 0,
+            "Model_id": 2,
+            "Solid_type_id": 1
+        },
+        {
+
+            "id":3,
+            "type": 0,
+            "Model_id": 3,
+            "Solid_type_id": 1
+        },
+        {
+
+            "id":4,
+            "type": 1,
+            "transform_matrix": "translate(0,-2,0)",
+            "children": [ 0, 5, 6 ]
+        },
+        {
+            "id":5,
+            "type":1,
+            "transform_matrix":"translate(4,2,5)",
+            "children": [ 1 ]
+        },
+        {
+            "id":6,
+            "type":1,
+            "transform_matrix":"scale(5)",
+            "children":[7]
+        },
+        {
+            "id":7,
+            "type":1,
+            "transform_matrix":"translate(-2,2,5)",
+            "children":[2,8]
+        },
+        {
+            "id":8,
+            "type":1,
+            "transform_matrix":"translate(0,5,0)",
+            "children":[3]
+        }
+    ],
+    "materials": [
+        {
+            "id": 0,
+            "color": [
+                0.9,
+                0.9,
+                0.9
+            ],
+            "H": 80,
+            "kA": 0.1,
+            "kD": 0.6,
+            "kS": 0.4,
+            "RefractionIndex": 1.5
+        },
+        {
+            "id": 1,
+            "color": [
+                1,
+                1,
+                0.2
+            ],
+            "H": 10,
+            "kA": 0.1,
+            "kD": 0.8,
+            "kS": 0.2,
+            "RefractionIndex": 1
+        },
+        {
+            "id": 2,
+            "color": [
+                0.9,
+                0.9,
+                0.9
+            ],
+            "H": 80,
+            "kA": 0.1,
+            "kD": 0.6,
+            "kS": 0.4,
+            "RefractionIndex": 1.5
+        },
+        {
+            "id": 3,
+            "color": [
+                0.8,
+                0.2,
+                0.4
+            ],
+            "H": 10,
+            "kA": 0.1,
+            "kD": 0.6,
+            "kS": 0.4,
+            "RefractionIndex": 1.5
+        }
+    ],
+    "root_object_id": 4,
+    "lights": [
+        {"type":"point","position":[5,5,5],"intensity":[1,1,1]},
+        {"type":"point","position":[1,2,3],"intensity":[0.1,0.1,0.1]},
+        {"type":"ambient","kA":0.1}
+    ],
+    "BackgroundColor": [
+        0.1,0.2,0.3
+    ]
+}
